@@ -91,3 +91,12 @@ function dragended(event, d) {
     if (!event.active) simulation.alphaTarget(0);
     d.fx = null; d.fy = null;
 }
+
+function loadMetrics() {
+    fetch("/api/metrics/")
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById("metrics").innerText =
+            JSON.stringify(data, null, 2);
+    });
+}

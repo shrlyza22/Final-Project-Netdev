@@ -44,7 +44,7 @@
 import requests
 
 def get_topology_data():
-    IP_RYU = "netdev1.eastasia.cloudapp.azure.com"
+    IP_RYU = "127.0.0.1"
     PORT = "8080"
 
     try:
@@ -98,4 +98,18 @@ def get_topology_data():
             {"source": "s2", "target": "h4"}
         ]
     }
+
+import requests
+
+def get_prometheus_metrics():
+    PROM_URL = "http://localhost:9090/api/v1/query"
+
+    query = "up"  # simple dulu
+
+    try:
+        res = requests.get(PROM_URL, params={"query": query})
+        data = res.json()
+        return data
+    except:
+        return {"error": "Prometheus tidak bisa diakses"} 
 

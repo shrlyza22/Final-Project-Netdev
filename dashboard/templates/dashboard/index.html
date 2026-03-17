@@ -205,15 +205,66 @@ function loadTopology() {
     .then(data => {
         console.log("Topology Data:", data);
 
+        // kalau data kosong → pakai dummy
+        if (!data.nodes || data.nodes.length === 0) {
+            console.log("⚠️ API kosong → pakai dummy");
+            data = getDummyTopology();
+        }
+
+        // tampil status
         document.getElementById("status-api").innerText =
             "API Connected ✅";
+
+        // tampil JSON (optional)
+        const output = document.getElementById("output");
+        if (output) {
+            output.innerText = JSON.stringify(data, null, 2);
+        }
+
+        // 🔥 render graph
+        drawTopology(data);
     })
     .catch(error => {
-        console.error("Error:", error);
-        document.getElementById("output").innerText =
-            "Gagal ambil data API ❌";
+        console.log("❌ API gagal → pakai dummy", error);
+
+        const data = getDummyTopology();
+
+        document.getElementById("status-api").innerText =
+            "Using Dummy Data ⚠️";
+
+        drawTopology(data);
     });
 }
+
+
+// 🔥 helper dummy biar rapi
+function getDummyTopology() {
+    return {
+        nodes: [
+            { id: "s1", type: "switch" },
+            { id: "s2", type: "switch" },
+            { id: "s3", type: "switch" },
+            { id: "s4", type: "switch" },
+            { id: "h1", type: "host" },
+            { id: "h2", type: "host" },
+            { id: "h3", type: "host" },
+            { id: "h4", type: "host" }
+        ],
+        links: [
+            { source: "s1", target: "s2" },
+            { source: "s1", target: "s3" },
+            { source: "s4", target: "s2" },
+            { source: "s4", target: "s3" },
+            { source: "s1", target: "h1" },
+            { source: "s4", target: "h2" },
+            { source: "s3", target: "h3" },
+            { source: "s2", target: "h4" }
+        ]
+    };
+}
+
+// auto load saat buka page (optional)
+window.onload = loadTopology;
 </script>
 
 <!-- External JS -->
