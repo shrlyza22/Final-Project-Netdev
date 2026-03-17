@@ -1,0 +1,128 @@
+:root {
+    --primary: #2c3e50;
+    --accent: #3498db;
+    --bg: #f8f9fa;
+    --card-bg: #ffffff;
+    --text: #333;
+}
+
+/* GLOBAL */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 40px;
+}
+
+/* CONTAINER */
+.container {
+    max-width: 1100px;
+    margin: auto;
+    background: var(--card-bg);
+    padding: 40px;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+}
+
+/* HEADINGS */
+h1 {
+    text-align: center;
+    color: var(--primary);
+    border-bottom: 2px solid #eee;
+    padding-bottom: 10px;
+}
+
+h2 {
+    border-left: 5px solid var(--accent);
+    padding-left: 15px;
+    margin-top: 40px;
+    color: var(--primary);
+}
+
+h3 {
+    color: var(--accent);
+}
+
+/* STATUS BADGE */
+.status-badge {
+    background: #e7f3ff;
+    color: #007bff;
+    padding: 5px 15px;
+    border-radius: 20px;
+    font-weight: bold;
+    font-size: 0.9em;
+}
+
+/* TOPOLOGY CONTAINER */
+#topo-container {
+    width: 100%;
+    height: 500px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    margin: 20px 0;
+    background: #fff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* BUTTON */
+button {
+    margin-top: 10px;
+    padding: 10px 20px;
+    border: none;
+    background: var(--accent);
+    color: white;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: 0.2s ease;
+}
+
+button:hover {
+    background: #2980b9;
+    transform: translateY(-1px);
+}
+
+/* OUTPUT JSON */
+#output {
+    background: #f4f4f4;
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 15px;
+    font-size: 13px;
+    overflow-x: auto;
+}
+
+/* STATUS API */
+#status-api {
+    margin-top: 10px;
+    font-weight: bold;
+    color: green;
+}
+
+/* CARD */
+.card {
+    border: 1px solid #eee;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+    background: var(--card-bg);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+}
+
+/* CODE */
+code {
+    background: #f4f4f4;
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-family: monospace;
+}
+
+/* HR */
+hr {
+    border: none;
+    border-top: 1px solid #eee;
+    margin: 40px 0;
+}
