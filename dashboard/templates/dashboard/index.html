@@ -27,5 +27,14 @@
         <div id="monitoring-section" style="margin-top: 30px;">
 
     <script src="{% static 'js/topology.js' %}"></script>
+
+    <h3>Link Statistics (Live Monitoring)</h3>
+    <div id="monitoring-section" style="display: flex; gap: 20px; flex-wrap: wrap;">
+        <div class="card" style="flex: 1; min-width: 450px; border: 1px solid #ddd; padding: 10px;">
+        <h4>Traffic Utilization</h4>
+        <iframe src="http://10.10.10.4:3000/d-solo/xxx/your-panel-id?orgId=1&refresh=5s" 
+                width="100%" height="300" frameborder="0"></iframe>
+        </div>
+    </div>
 </body>
 </html>

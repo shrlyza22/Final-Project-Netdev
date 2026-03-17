@@ -5,15 +5,15 @@ const svg = d3.select("svg"),
 
 // 2. Setup simulasi gaya (biar bulatan gak tumpuk-tumpukan)
 const simulation = d3.forceSimulation()
-    .force("link", d3.forceLink().id(d => d.id).distance(100))
-    .force("charge", d3.forceManyBody().strength(-200))
+    .force("link", d3.forceLink().id(d => d.id).distance(150))
+    .force("charge", d3.forceManyBody().strength(-300))
     .force("center", d3.forceCenter(width / 2, height / 2));
 
-// 3. Ambil data dari API Django yang kamu buat di views.py
+// 3. Ambil data dari API Django
 fetch('/api/topology/')
     .then(response => response.json())
     .then(data => {
-        // Gambar Garis (Links)
+        // A. Gambar Garis (Links)
         const link = svg.append("g")
             .selectAll("line")
             .data(data.links)
@@ -21,29 +21,53 @@ fetch('/api/topology/')
             .attr("stroke", "#999")
             .attr("stroke-width", 2);
 
-        // Gambar Bulatan (Nodes)
+        // B. Gambar Bulatan (Nodes)
         const node = svg.append("g")
             .selectAll("circle")
             .data(data.nodes)
             .enter().append("circle")
-            .attr("r", d => d.type === "switch" ? 15 : 10) // Switch lebih besar
+            .attr("r", d => d.type === "switch" ? 18 : 12) // Switch lebih gede dikit
             .attr("fill", d => d.type === "switch" ? "#007bff" : "#28a745") // Biru=Switch, Hijau=Host
-            .call(d3.drag() // Biar bisa ditarik pake mouse
+            .attr("stroke", "#fff")
+            .attr("stroke-width", 2)
+            .style("cursor", "pointer")
+            .call(d3.drag() 
                 .on("start", dragstarted)
                 .on("drag", dragged)
                 .on("end", dragended));
 
-        // Kasih label nama (s1, h1, dll)
+        // C. FITUR KLIK (TASK 3) - Sekarang sudah di DALAM scope fetch
+        node.on("click", (event, d) => {
+            const action = d.status === "down" ? "up" : "down";
+            const labelPesan = action === "up" ? "Nyalakan" : "Matikan";
+
+            if(confirm(`${labelPesan} switch ${d.id}?`)) {
+                fetch(`/api/node-control/${d.id}/${action}/`)
+                    .then(res => res.json())
+                    .then(result => {
+                        if(result.status === "success") {
+                            d.status = action; // Simpan status sementara
+                            // Ganti warna: Merah kalau mati, Biru kalau nyala
+                            d3.select(event.currentTarget)
+                                .attr("fill", action === "down" ? "#dc3545" : "#007bff");
+                            alert(`Notifikasi: ${d.id} berhasil di-${action}`);
+                        }
+                    });
+            }
+        });
+
+        // D. Kasih label nama (s1, h1, dll)
         const label = svg.append("g")
             .selectAll("text")
             .data(data.nodes)
             .enter().append("text")
             .text(d => d.id)
-            .attr("font-size", "12px")
-            .attr("dx", 15)
-            .attr("dy", 4);
+            .attr("font-size", "14px")
+            .attr("font-weight", "bold")
+            .attr("dx", 20)
+            .attr("dy", 5);
 
-        // Update posisi setiap kali simulasi bergerak
+        // E. Update posisi setiap kali simulasi bergerak (Tick)
         simulation.nodes(data.nodes).on("tick", () => {
             link.attr("x1", d => d.source.x)
                 .attr("y1", d => d.source.y)
@@ -57,7 +81,7 @@ fetch('/api/topology/')
         simulation.force("link").links(data.links);
     });
 
-// Fungsi biar bisa di-drag
+// Fungsi Drag (Biar bisa ditarik mouse)
 function dragstarted(event, d) {
     if (!event.active) simulation.alphaTarget(0.3).restart();
     d.fx = d.x; d.fy = d.y;
@@ -67,4 +91,3 @@ function dragended(event, d) {
     if (!event.active) simulation.alphaTarget(0);
     d.fx = null; d.fy = null;
 }
-
