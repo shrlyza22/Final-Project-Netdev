@@ -64,7 +64,7 @@ fetch('/api/topology/')
             .text(d => d.id)
             .attr("font-size", "14px")
             .attr("font-weight", "bold")
-            .attr("dx", 20)
+            .attr("dx", 22)
             .attr("dy", 5);
 
         // E. Update posisi setiap kali simulasi bergerak (Tick)
