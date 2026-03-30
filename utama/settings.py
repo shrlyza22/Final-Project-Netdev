@@ -31,6 +31,8 @@ ALLOWED_HOSTS = ['netdev1.eastasia.cloudapp.azure.com', 'localhost', '127.0.0.1'
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',      
+    'channels',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
