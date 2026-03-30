@@ -176,7 +176,6 @@ function loadTopology() {
         drawTopology(data);
     })
     .catch(error => {
-<<<<<<< Updated upstream
         console.log("❌ API gagal → pakai dummy", error);
 
         const data = getDummyTopology();
@@ -185,12 +184,6 @@ function loadTopology() {
             "Using Dummy Data ⚠️";
 
         drawTopology(data);
-=======
-        
-        console.error("Error:", error);
-        document.getElementById("output").innerText =
-            "Gagal ambil data API ❌";
->>>>>>> Stashed changes
     });
 }
 
@@ -230,8 +223,4 @@ window.onload = loadTopology;
 <script src="{% static 'js/topology.js' %}"></script>
 
 </body>
-<<<<<<< Updated upstream
 </html>
-=======
-</html> 
->>>>>>> Stashed changes

@@ -1,8 +1,9 @@
-/* Import Google Font agar lebih modern */
+/* Import Google Font */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono&display=swap');
 
 :root {
     --bg-dark: #0f172a;           /* Deep Blue Grey */
+    --sidebar-bg: #020617;
     --card-bg: #1e293b;           /* Lighter Slate */
     --accent-blue: #38bdf8;       /* Electric Blue */
     --accent-green: #22c55e;      /* Success Green */
@@ -20,22 +21,28 @@ body {
     background-color: var(--bg-dark);
     color: var(--text-main);
     font-family: 'Inter', sans-serif;
-    overflow: hidden; /* Biar dashboard pas di satu layar */
+    min-height: 100vh;
+    overflow-y: auto; /* WAJIB: Biar bisa scroll ke bawah cek Prometheus */
+    line-height: 1.5;
 }
 
 /* Layout Container */
 .app-container {
     display: flex;
-    height: 100vh;
+    min-height: 100vh;
 }
 
-/* Sidebar Styling */
+/* Sidebar Styling - Tetap di tempat saat scroll */
 .sidebar {
     width: 260px;
-    background-color: #020617;
+    background-color: var(--sidebar-bg);
     border-right: 1px solid var(--border-color);
-    display: flex; flex-direction: column;
+    display: flex; 
+    flex-direction: column;
     padding: 24px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
 }
 
 .logo-container {
@@ -44,17 +51,23 @@ body {
     letter-spacing: -1px;
 }
 
-/* Cards & Grid System */
+/* Main Content Area */
 .main-content {
     flex: 1;
     padding: 30px;
-    overflow-y: auto;
+    background-color: var(--bg-dark);
 }
 
 .dashboard-grid {
     display: grid;
-    grid-template-columns: 2fr 1fr;
+    grid-template-columns: 1fr; /* Default 1 kolom biar rapi saat scroll */
     gap: 24px;
+}
+
+@media (min-width: 1200px) {
+    .dashboard-grid {
+        grid-template-columns: 2fr 1fr; /* Balik ke 2 kolom di layar lebar */
+    }
 }
 
 .card {
@@ -63,6 +76,7 @@ body {
     border: 1px solid var(--border-color);
     padding: 24px;
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+    margin-bottom: 24px;
 }
 
 .card-title {
@@ -73,49 +87,33 @@ body {
     margin-bottom: 20px;
 }
 
-/* Task 1: Topology Canvas */
+/* Topology Canvas - Fix Position */
 #topo-canvas {
-    width: 100%; height: 500px;
+    width: 100%; 
+    height: 500px;
     background: radial-gradient(circle, #1e293b 0%, #0f172a 100%);
     border-radius: 12px;
     position: relative;
-    cursor: grab;
+    border: 1px solid var(--border-color);
+    overflow: hidden; /* Biar elemen D3 gak keluar garis card */
 }
 
-/* Task 3: Table & Buttons Control */
-.control-table {
-    width: 100%; border-collapse: collapse;
+svg {
+    width: 100%;
+    height: 100%;
+    display: block;
 }
 
-.control-table th {
-    text-align: left; padding: 12px;
-    color: var(--text-muted); font-size: 12px;
+/* Prometheus/Grafana Iframe Styling */
+iframe {
+    width: 100%;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    background: #111;
 }
-
-.control-table td {
-    padding: 16px 12px; border-top: 1px solid var(--border-color);
-}
-
-.btn-action {
-    padding: 8px 16px; border-radius: 8px;
-    font-weight: 600; font-size: 12px;
-    cursor: pointer; transition: all 0.2s;
-    border: none;
-}
-
-.btn-down { background: rgba(239, 68, 68, 0.1); color: var(--accent-red); border: 1px solid var(--accent-red); }
-.btn-down:hover { background: var(--accent-red); color: white; }
-
-.btn-up { background: rgba(34, 197, 94, 0.1); color: var(--accent-green); border: 1px solid var(--accent-green); }
-.btn-up:hover { background: var(--accent-green); color: white; }
-
-/* Status Labels */
-.status-pill {
-    padding: 4px 10px; border-radius: 20px;
-    font-size: 11px; font-weight: bold;
-}
-.status-active { background: rgba(34, 197, 94, 0.2); color: var(--accent-green); }
 
 /* Custom Scrollbar */
-::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--bg-dark); }
 ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent-blue); }
