@@ -6,7 +6,6 @@
     <title>Dashboard NetDev - Kelompok 1</title>
 
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
-    <!-- D3.js -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
 
     <style>
@@ -46,15 +45,6 @@
 
         h3 { color: var(--accent); }
 
-        .status-badge {
-            background: #e7f3ff;
-            color: #007bff;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-weight: bold;
-            font-size: 0.9em;
-        }
-
         #topo-container {
             width: 100%;
             height: 500px;
@@ -62,6 +52,23 @@
             border-radius: 8px;
             margin: 20px 0;
             background: #fff;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #error-overlay {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #e74c3c;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #ffccd5;
+            z-index: 10;
         }
 
         .card {
@@ -72,30 +79,10 @@
             background: #fff;
         }
 
-        code {
-            background: #f4f4f4;
-            padding: 2px 5px;
-            border-radius: 4px;
-            font-family: monospace;
-        }
-
         hr {
             border: 0;
             border-top: 1px solid #eee;
             margin: 40px 0;
-        }
-
-        button {
-            padding: 10px 20px;
-            border: none;
-            background: #3498db;
-            color: white;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
-        button:hover {
-            background: #2980b9;
         }
     </style>
 </head>
@@ -105,31 +92,23 @@
 
     <h1>Final Project - Kelompok 1</h1>
 
-
-
-    <!-- TOPOLOGY -->
     <h2>Jaringan & Topologi</h2>
     <p>
-        Visualisasi <code>diamond_topo.py</code> yang berjalan di <strong>VM2</strong>
+        Visualisasi <code>diamond_topo.py</code> yang berjalan di <strong>VM2</strong> 
         dan dikontrol oleh <strong>Ryu Controller (VM1)</strong>.
     </p>
 
     <div id="topo-container">
-        <svg width="100%" height="100%"></svg>
+        <div id="error-overlay">
+            <strong>❌ Gagal Menarik Data Ryu</strong><br>
+            <span id="error-text">Pastikan VM1 dan API Topology aktif.</span>
+        </div>
+        
+        <svg id="topo-svg" width="100%" height="100%"></svg>
     </div>
-
-    <!-- BUTTON API -->
-    <button onclick="loadTopology()">Load Topology Data</button>
-
-    <!-- STATUS -->
-    <p id="status-api" style="margin-top:10px; color:green;"></p>
-
-    <!-- OUTPUT JSON -->
-    <pre id="output" style="background:#f4f4f4; padding:15px; border-radius:8px; margin-top:15px;"></pre>
 
     <hr>
 
-    <!-- MONITORING -->
     <h2>Live Monitoring</h2>
     <p>
         Data statistik trafik real-time yang diambil dari <strong>Prometheus Exporter</strong>.
@@ -145,78 +124,44 @@
 
 </div>
 
-<!-- SCRIPT -->
 <script>
 function loadTopology() {
+    const errorOverlay = document.getElementById("error-overlay");
+    const errorText = document.getElementById("error-text");
+    const svgElement = document.getElementById("topo-svg");
+
     fetch("/api/topology/")
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) throw new Error("Server Ryu tidak merespons (404/500)");
+        return response.json();
+    })
     .then(data => {
-        console.log("Topology Data:", data);
-
-        // kalau data kosong → pakai dummy
+        // Cek jika data kosong dari Ryu
         if (!data.nodes || data.nodes.length === 0) {
-            console.log("⚠️ API kosong → pakai dummy");
-            data = getDummyTopology();
+            throw new Error("Data Topologi Kosong (Check Ryu App)");
         }
 
-        // tampil status
-        document.getElementById("status-api").innerText =
-            "API Connected ✅";
-
-        // tampil JSON (optional)
-        const output = document.getElementById("output");
-        if (output) {
-            output.innerText = JSON.stringify(data, null, 2);
-        }
-
-        // 🔥 render graph
-        drawTopology(data);
+        // Berhasil: Sembunyikan error dan gambar
+        errorOverlay.style.display = "none";
+        svgElement.style.opacity = "1";
+        
+        console.log("Topology Data Loaded:", data);
+        drawTopology(data); 
     })
     .catch(error => {
-        console.log("❌ API gagal → pakai dummy", error);
-
-        const data = getDummyTopology();
-
-        document.getElementById("status-api").innerText =
-            "Using Dummy Data ⚠️";
-
-        drawTopology(data);
+        console.error("Kesalahan API:", error);
+        
+        // Gagal: Tampilkan pesan error, sembunyikan SVG
+        svgElement.style.opacity = "0.1"; // buat agak transparan kalau error
+        errorOverlay.style.display = "block";
+        errorText.innerText = error.message;
     });
 }
 
-
-// 🔥 helper dummy biar rapi
-function getDummyTopology() {
-    return {
-        nodes: [
-            { id: "s1", type: "switch" },
-            { id: "s2", type: "switch" },
-            { id: "s3", type: "switch" },
-            { id: "s4", type: "switch" },
-            { id: "h1", type: "host" },
-            { id: "h2", type: "host" },
-            { id: "h3", type: "host" },
-            { id: "h4", type: "host" }
-        ],
-        links: [
-            { source: "s1", target: "s2" },
-            { source: "s1", target: "s3" },
-            { source: "s4", target: "s2" },
-            { source: "s4", target: "s3" },
-            { source: "s1", target: "h1" },
-            { source: "s4", target: "h2" },
-            { source: "s3", target: "h3" },
-            { source: "s2", target: "h4" }
-        ]
-    };
-}
-
-// auto load saat buka page (optional)
+// Auto load saat halaman terbuka
 window.onload = loadTopology;
 </script>
 
-
-<!-- External JS -->
 <script src="{% static 'js/topology.js' %}"></script>
 
 </body>
