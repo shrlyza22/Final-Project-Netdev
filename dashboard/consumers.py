@@ -16,26 +16,27 @@ class TopologyConsumer(AsyncWebsocketConsumer):
         self.keep_running = False
 
     async def send_stats_loop(self):
-        """Loop untuk mengambil data dari Ryu dan kirim ke WebSocket"""
         while self.keep_running:
-            # GANTI DENGAN IP VM1 KAMU
-            RYU_IP = "192.168.x.x" 
-            ryu_url = f"http://{RYU_IP}:8080/stats/switches"
+            RYU_IP = "10.10.10.4" # Ganti pake IP Private VM1
             
             try:
-                # Gunakan loop.run_in_executor agar requests (blocking) 
-                # tidak membuat WebSocket macet
                 loop = asyncio.get_event_loop()
-                response = await loop.run_in_executor(None, requests.get, ryu_url)
-                
-                if response.status_code == 200:
-                    data = response.json()
+                # Ambil data Switch
+                sw_res = await loop.run_in_executor(None, requests.get, f"http://{RYU_IP}:8080/v1.0/topology/switches")
+                # Ambil data Link (PENTING buat nampilin garis antar switch)
+                ln_res = await loop.run_in_executor(None, requests.get, f"http://{RYU_IP}:8080/v1.0/topology/links")
+
+                if sw_res.status_code == 200 and ln_res.status_code == 200:
+                    combined_data = {
+                        'switches': sw_res.json(),
+                        'links': ln_res.json()
+                    }
+                    # Kirim ke WebSocket
                     await self.send(text_data=json.dumps({
                         'type': 'topology_update',
-                        'data': data
+                        'data': combined_data
                     }))
             except Exception as e:
-                print(f"Error Ryu VM1: {e}")
+                print(f"Error Ryu: {e}")
             
-            # Update setiap 5 detik
-            await asyncio.sleep(5)
+            await asyncio.sleep(5) # Update otomatis tiap 5 detik
