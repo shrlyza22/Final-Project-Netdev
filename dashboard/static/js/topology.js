@@ -73,7 +73,7 @@ function drawTopology(data) {
 }
 
 // 4. Integrasi WebSocket
-const socket = new WebSocket('ws://' + window.location.host + '/ws/topology/');
+const socket = new WebSocket('ws://' + window.location.host + '/ws/topology/$');
 
 socket.onmessage = function(event) {
     const incoming = JSON.parse(event.data);

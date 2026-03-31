@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-zbmqe#%qo4n+k!5!cp8+)gcfb61sx@pfg8+(@$v@7w&y47v85n
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['netdev1.eastasia.cloudapp.azure.com', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['netdev1.eastasia.cloudapp.azure.com', 'localhost', '127.0.0.1', '0.0.0.0']
 
 
 # Application definition
