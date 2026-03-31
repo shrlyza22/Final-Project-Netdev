@@ -73,18 +73,16 @@ function drawTopology(data) {
 }
 
 // 4. Integrasi WebSocket
-const socket = new WebSocket('ws://' + window.location.host + '/ws/topology/');
+const socket = new WebSocket('ws://' + window.location.host + '/ws/topology/$');
 
 socket.onmessage = function(event) {
-    try {
-        const incomingData = JSON.parse(event.data);
-        console.log("📥 Live Update dari Ryu:", incomingData.data);
+    const incoming = JSON.parse(event.data);
+    if (incoming.type === 'topology_update') {
+        // Format data Ryu ke format yang dimengerti D3.js (nodes & links)
+        const formattedData = formatRyuData(incoming.data);
         
-        // Pastikan fungsi helper format data dipanggil
-        const formattedData = formatRyuData(incomingData.data);
+        // LANGSUNG GAMBAR DI DASHBOARD
         drawTopology(formattedData);
-    } catch (err) {
-        console.error("Gagal memproses data WebSocket:", err);
     }
 };
 
