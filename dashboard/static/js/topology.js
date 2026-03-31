@@ -84,11 +84,13 @@ socket.onmessage = function(event) {
     if (incoming.type === 'topology_update') {
         // Format data Ryu ke format D3
         const formattedData = formatRyuData(incoming.data);
+        drawTopology(formattedData);
     }
 };
 
 socket.onclose = function(e) {
-    console.error('Koneksi WebSocket ke Controller Terputus!');
+    console.error('Koneksi WebSocket ke Controller Terputus!')
+};
 
 // 5. Fungsi Helper Mapping Data Ryu - Perbaikan Parsing HEX ke ID s1, s2
 function formatRyuData(ryuJson) {
@@ -140,5 +142,4 @@ function dragended(event, d) {
     if (!event.active) simulation.alphaTarget(0);
     d.fx = null;
     d.fy = null;
-}
 }
