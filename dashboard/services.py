@@ -113,3 +113,9 @@ def get_prometheus_metrics():
     except:
         return {"error": "Prometheus tidak bisa diakses"} 
 
+import requests
+
+def get_ryu_topology():
+    # Ambil data switch dari VM1
+    response = requests.get('http://<IP-VM1>:8080/topology/switches')
+    return response.json()
