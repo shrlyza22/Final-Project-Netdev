@@ -1,4 +1,3 @@
-   
 import requests
 
 def get_topology_data():
@@ -34,28 +33,28 @@ def get_topology_data():
         print(f"❌ ERROR AZURE: {e}")
 
     # 🔥 FALLBACK DUMMY (SEKARANG PASTI KEPAKAI)
-    return {
-        "nodes": [
-            {"id": "s1", "type": "switch"},
-            {"id": "s2", "type": "switch"},
-            {"id": "s3", "type": "switch"},
-            {"id": "s4", "type": "switch"},
-            {"id": "h1", "type": "host"},
-            {"id": "h2", "type": "host"},
-            {"id": "h3", "type": "host"},
-            {"id": "h4", "type": "host"}
-        ],
-        "links": [
-            {"source": "s1", "target": "s2"},
-            {"source": "s1", "target": "s3"},
-            {"source": "s4", "target": "s2"},
-            {"source": "s4", "target": "s3"},
-            {"source": "s1", "target": "h1"},
-            {"source": "s4", "target": "h2"},
-            {"source": "s3", "target": "h3"},
-            {"source": "s2", "target": "h4"}
-        ]
-    }
+    # return {
+    #     "nodes": [
+    #         {"id": "s1", "type": "switch"},
+    #         {"id": "s2", "type": "switch"},
+    #         {"id": "s3", "type": "switch"},
+    #         {"id": "s4", "type": "switch"},
+    #         {"id": "h1", "type": "host"},
+    #         {"id": "h2", "type": "host"},
+    #         {"id": "h3", "type": "host"},
+    #         {"id": "h4", "type": "host"}
+    #     ],
+    #     "links": [
+    #         {"source": "s1", "target": "s2"},
+    #         {"source": "s1", "target": "s3"},
+    #         {"source": "s4", "target": "s2"},
+    #         {"source": "s4", "target": "s3"},
+    #         {"source": "s1", "target": "h1"},
+    #         {"source": "s4", "target": "h2"},
+    #         {"source": "s3", "target": "h3"},
+    #         {"source": "s2", "target": "h4"}
+    #     ]
+    # }
 
 import requests
 
