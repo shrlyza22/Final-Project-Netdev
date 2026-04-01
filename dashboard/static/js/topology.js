@@ -1,45 +1,56 @@
-// 1. Inisialisasi - Gunakan Selector yang konsisten dengan CSS (topo-container)
+// 1. Inisialisasi - Gunakan Selector id topo-svg sesuai HTML terbaru
 const topoContainer = document.getElementById("topo-container");
 const svg = d3.select("#topo-svg");
 
-// Ukuran container dinamis
 let width = topoContainer.clientWidth;
 let height = 500; 
 
 // 2. Setup Simulasi Gaya (Force Simulation)
 const simulation = d3.forceSimulation()
-    .force("link", d3.forceLink().id(d => d.id).distance(150)) // Jarak antar node
-    .force("charge", d3.forceManyBody().strength(-500))        // Saling tolak menolak
+    .force("link", d3.forceLink().id(d => d.id).distance(150))
+    .force("charge", d3.forceManyBody().strength(-600)) 
     .force("center", d3.forceCenter(width / 2, height / 2));
 
 // 3. Fungsi Utama Menggambar
 function drawTopology(data) {
     if (!data || !data.nodes) return;
 
-    // Bersihkan SVG sebelum gambar ulang
     svg.selectAll("*").remove();
 
-    // A. Gambar Garis (Links)
-    const link = svg.append("g")
-        .selectAll("line")
+    // --- A. Gambar Garis (Links) ---
+    const linkGroup = svg.append("g").attr("class", "links");
+    
+    const link = linkGroup.selectAll("line")
         .data(data.links)
         .enter().append("line")
         .attr("stroke", d => {
-            if (d.status === "DOWN") return "#ef4444"; // Merah jika mati
-            if (d.usage > 0) return "#22c55e";        // Hijau jika ada trafik aktif
-            return "#94a3b8";                          // Abu-abu jika standby/idle
-            })
-        .attr("stroke-width", d => d.usage > 0 ? 4 : 2) // Garis lebih tebal kalau aktif
-        .attr("stroke-opacity", 0.8);
-            
 
-    // B. Gambar Nodes (Bulatan)
-    const node = svg.append("g")
-        .selectAll("circle")
+            if (d.status === "DOWN") return "#ef4444"; 
+            return d.usage > 0 ? "#0a3d62" : "#94a3b8"; 
+        })
+        .attr("stroke-width", d => d.usage > 0 ? 5 : 2.5)
+        .attr("stroke-opacity", 0.8)
+        .attr("stroke-linecap", "round")
+        .classed("link-flow-active", d => d.usage > 0 && d.status !== "DOWN");
+
+    // --- B. Gambar Label Persentase di Tengah Jalur ---
+    const linkText = svg.append("g")
+        .selectAll("text")
+        .data(data.links)
+        .enter().append("text")
+        .attr("font-size", "11px")
+        .attr("font-weight", "bold")
+        .attr("fill", "#ef4444") 
+        .text(d => d.usage > 0 ? d.usage + "%" : "");
+
+    // --- C. Gambar Nodes (Bulatan) ---
+    const nodeGroup = svg.append("g").attr("class", "nodes");
+
+    const node = nodeGroup.selectAll("circle")
         .data(data.nodes)
         .enter().append("circle")
         .attr("r", d => d.type === "switch" ? 22 : 16)
-        .attr("fill", d => d.type === "switch" ? "#38bdf8" : "#22c55e") // Accent Blue vs Green
+        .attr("fill", d => d.type === "switch" ? "#38bdf8" : "#22c55e")
         .attr("stroke", "#fff")
         .attr("stroke-width", 2)
         .style("cursor", "pointer")
@@ -48,27 +59,26 @@ function drawTopology(data) {
             .on("drag", dragged)
             .on("end", dragended));
 
-    // C. Label Nama (ID Node)
+    // --- D. Label Nama (ID Node) ---
     const label = svg.append("g")
         .selectAll("text")
         .data(data.nodes)
         .enter().append("text")
         .text(d => d.id)
-        .attr("font-size", "12px")
-        .attr("font-family", "Inter, sans-serif")
-        .attr("fill", "#f1f5f9")
-        .attr("font-weight", "bold")
-        .attr("dx", 25)
-        .attr("dy", 4);
+        .attr("dx", 28) 
+        .attr("dy", 5);
 
-    // D. Update Posisi tiap detik simulasi (Tick)
+    // --- E. Update Posisi (Tick) ---
     simulation.nodes(data.nodes).on("tick", () => {
         link.attr("x1", d => d.source.x)
             .attr("y1", d => d.source.y)
             .attr("x2", d => d.target.x)
             .attr("y2", d => d.target.y);
 
-        // Bounding Box agar node tidak lari keluar container
+        linkText
+            .attr("x", d => (d.source.x + d.target.x) / 2)
+            .attr("y", d => (d.source.y + d.target.y) / 2);
+
         node.attr("cx", d => d.x = Math.max(30, Math.min(width - 30, d.x)))
             .attr("cy", d => d.y = Math.max(30, Math.min(height - 30, d.y)));
             
@@ -79,59 +89,78 @@ function drawTopology(data) {
     simulation.alpha(1).restart();
 }
 
-// 4. Integrasi WebSocket - Perbaikan URL (Hapus $)
+// 4. Integrasi WebSocket
 const socket = new WebSocket('ws://' + window.location.host + '/ws/topology/');
 
 socket.onmessage = function(event) {
     const incoming = JSON.parse(event.data);
-    console.log("WS Data Received:", incoming);
-    
     if (incoming.type === 'topology_update') {
-        // Format data Ryu ke format D3
+        // Sekarang memproses data gabungan (switches, links, flows)
         const formattedData = formatRyuData(incoming.data);
         drawTopology(formattedData);
     }
 };
 
-socket.onclose = function(e) {
-    console.error('Koneksi WebSocket ke Controller Terputus!')
-};
-
-// 5. Fungsi Helper Mapping Data Ryu - Perbaikan Parsing HEX ke ID s1, s2
+// 5. 🔥 JALUR NINJA: Mapping Data Ryu (Switch + Link + Flow Stats)
 function formatRyuData(ryuJson) {
     let nodes = [];
     let links = [];
 
-    console.log("Raw Ryu Data:", ryuJson); // Tambahkan ini di awal fungsi formatRyuData
-    // Jika datang dari endpoint /switches
+    // 1. Proses Switch Resmi
     if (ryuJson.switches && Array.isArray(ryuJson.switches)) {
         ryuJson.switches.forEach(sw => {
-            // Konversi dpid hex ke integer (contoh: "00000001" -> 1 -> "s1")
             nodes.push({ id: "s" + parseInt(sw.dpid, 16), type: "switch" });
         });
     }
 
-    // Jika datang dari endpoint /links
+    // 2. Proses Link Antar Switch Resmi
     if (ryuJson.links && Array.isArray(ryuJson.links)) {
         ryuJson.links.forEach(l => {
+            let simUsage = Math.floor(Math.random() * 100);
+            let simStatus = Math.random() > 0.1 ? "UP" : "DOWN";
+
             links.push({ 
                 source: "s" + parseInt(l.src.dpid, 16), 
-                target: "s" + parseInt(l.dst.dpid, 16) 
+                target: "s" + parseInt(l.dst.dpid, 16),
+                usage: simUsage, 
+                status: simStatus
             });
         });
     }
 
-    // Fallback jika formatnya berbeda (Simple list dpid)
-    if (nodes.length === 0 && Array.isArray(ryuJson)) {
-        ryuJson.forEach(dpid => {
-            nodes.push({ id: "s" + parseInt(dpid, 16), type: "switch" });
+    // 3. 🔥 EKSTRAKSI HOST DARI FLOW STATS (Jalur Ninja)
+    if (ryuJson.flows && Array.isArray(ryuJson.flows)) {
+        ryuJson.flows.forEach(swFlowObj => {
+            // Format ryu: { "dpid_dalam_angka": [daftar_flow] }
+            const dpidKey = Object.keys(swFlowObj)[0];
+            const flows = swFlowObj[dpidKey];
+
+            flows.forEach(f => {
+                // Cari IP Source (ipv4_src atau nw_src)
+                const srcIp = f.match.ipv4_src || f.match.nw_src;
+                
+                // Jika IP ditemukan dan bukan broadcast/kosong
+                if (srcIp && srcIp !== "0.0.0.0") {
+                    // Masukkan ke nodes jika belum terdaftar
+                    if (!nodes.find(n => n.id === srcIp)) {
+                        nodes.push({ id: srcIp, type: "host" });
+                        // Hubungkan host ke switch tempat flow ini berada
+                        links.push({
+                            source: srcIp,
+                            target: "s" + parseInt(dpidKey),
+                            usage: 0,
+                            status: "UP"
+                        });
+                    }
+                }
+            });
         });
     }
 
     return { nodes, links };
 }
 
-// 6. Fungsi Drag (Wajib untuk interaktivitas)
+// 6. Fungsi Drag
 function dragstarted(event, d) {
     if (!event.active) simulation.alphaTarget(0.3).restart();
     d.fx = d.x;

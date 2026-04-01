@@ -11,6 +11,10 @@
     --text-main: #f1f5f9;
     --text-muted: #94a3b8;
     --border-color: #334155;
+    
+    /* Tambahan Warna untuk Jalur */
+    --link-active: #0a3d62;       /* Biru Tua Banget */
+    --link-idle: #94a3b8;         /* Abu-abu */
 }
 
 * {
@@ -22,8 +26,35 @@ body {
     color: var(--text-main);
     font-family: 'Inter', sans-serif;
     min-height: 100vh;
-    overflow-y: auto; /* WAJIB: Biar bisa scroll ke bawah cek Prometheus */
+    overflow-y: auto; 
     line-height: 1.5;
+}
+
+/* --- ANIMASI ALIRAN LISTRIK --- */
+@keyframes flowDash {
+    to {
+        stroke-dashoffset: -20;
+    }
+}
+
+.link-flow-active {
+    stroke-dasharray: 10, 5; /* Pola garis putus-putus */
+    animation: flowDash 1s linear infinite; /* Gerakan mengalir */
+}
+
+/* --- STYLING LABEL TEKS D3.JS --- */
+/* Biar teks Hitam tetap kelihatan di Background Gelap */
+#topo-svg text {
+    fill: #000000 !important;
+    font-weight: 800;
+    font-size: 12px;
+    pointer-events: none;
+    /* Trik HALO/OUTLINE Putih: Agar teks hitam "mengambang" dan terbaca */
+    paint-order: stroke;
+    stroke: #ffffff;
+    stroke-width: 3px;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
 
 /* Layout Container */
@@ -32,7 +63,7 @@ body {
     min-height: 100vh;
 }
 
-/* Sidebar Styling - Tetap di tempat saat scroll */
+/* Sidebar */
 .sidebar {
     width: 260px;
     background-color: var(--sidebar-bg);
@@ -60,13 +91,13 @@ body {
 
 .dashboard-grid {
     display: grid;
-    grid-template-columns: 1fr; /* Default 1 kolom biar rapi saat scroll */
+    grid-template-columns: 1fr;
     gap: 24px;
 }
 
 @media (min-width: 1200px) {
     .dashboard-grid {
-        grid-template-columns: 2fr 1fr; /* Balik ke 2 kolom di layar lebar */
+        grid-template-columns: 2fr 1fr;
     }
 }
 
@@ -87,24 +118,19 @@ body {
     margin-bottom: 20px;
 }
 
-/* Topology Canvas - Fix Position */
+/* Topology Canvas */
 #topo-container {
     width: 100%; 
     height: 500px;
+    /* Gradasi biar lebih dramatis */
     background: radial-gradient(circle, #1e293b 0%, #0f172a 100%);
     border-radius: 12px;
     position: relative;
     border: 1px solid var(--border-color);
-    overflow: hidden; /* Biar elemen D3 gak keluar garis card */
+    overflow: hidden;
 }
 
-svg {
-    width: 100%;
-    height: 100%;
-    display: block;
-}
-
-/* Prometheus/Grafana Iframe Styling */
+/* Iframe Styling */
 iframe {
     width: 100%;
     border-radius: 12px;
