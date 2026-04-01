@@ -24,9 +24,14 @@ function drawTopology(data) {
         .selectAll("line")
         .data(data.links)
         .enter().append("line")
-        .attr("stroke", "#94a3b8") // Warna line (text-muted)
-        .attr("stroke-width", 2)
-        .attr("stroke-opacity", 0.6);
+        .attr("stroke", d => {
+            if (d.status === "DOWN") return "#ef4444"; // Merah jika mati
+            if (d.usage > 0) return "#22c55e";        // Hijau jika ada trafik aktif
+            return "#94a3b8";                          // Abu-abu jika standby/idle
+            })
+        .attr("stroke-width", d => d.usage > 0 ? 4 : 2) // Garis lebih tebal kalau aktif
+        .attr("stroke-opacity", 0.8);
+            
 
     // B. Gambar Nodes (Bulatan)
     const node = svg.append("g")
