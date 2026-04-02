@@ -45,7 +45,7 @@ body {
 /* --- STYLING LABEL TEKS D3.JS --- */
 /* Biar teks Hitam tetap kelihatan di Background Gelap */
 #topo-svg text {
-    fill: #000000 !important;
+    /* fill: #000000 !important; */
     font-weight: 800;
     font-size: 12px;
     pointer-events: none;

@@ -14,7 +14,7 @@ class TopologyConsumer(AsyncWebsocketConsumer):
 
     async def send_stats_loop(self):
         # Ganti dengan IP Public Azure kamu kalau akses dari luar
-        RYU_IP = "10.10.10.4" 
+        RYU_IP = "netdev1.eastasia.cloudapp.azure.com" 
         
         while self.keep_running:
             try:

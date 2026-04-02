@@ -1,7 +1,7 @@
 import requests
 
 def get_topology_data():
-    IP_RYU = "10.10.10.4"
+    IP_RYU = "netdev1.eastasia.cloudapp.azure.com"
     PORT = "8080"
 
     try:
