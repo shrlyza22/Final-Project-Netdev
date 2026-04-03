@@ -152,51 +152,57 @@ function formatRyuData(ryuJson) {
         });
     }
 
-    // 🔥 4. ALGORITMA PENYEBARAN PERSENTASE SESUAI JALUR
-    const g1 = groupMap[1]; // S1 Load Balancer (Skema H1-H2)
-    const g3 = groupMap[3]; // S3 Load Balancer (Skema H3-H4)
+    // 🔥 4. ALGORITMA PENYEBARAN PERSENTASE MULTI-ARAH
+    const g1 = groupMap[1]; // S1 (h1 -> h2)
+    const g2 = groupMap[2]; // S2 (h4 -> h3)
+    const g3 = groupMap[3]; // S3 (h3 -> h4)
+    const g4 = groupMap[4]; // S4 (h2 -> h1)
 
     let activeLB = null;
     let b0_pct = "";
     let b1_pct = "";
+    let maxBytes = 0;
 
-    // Cek Load Balancer mana yang lagi dapet trafik iperf
-    if (g1 && g1.byte_count > 0) {
-        activeLB = "s1";
-        b0_pct = ((g1.bucket_stats[0].byte_count / g1.byte_count) * 100).toFixed(2) + "%";
-        b1_pct = ((g1.bucket_stats[1].byte_count / g1.byte_count) * 100).toFixed(2) + "%";
-    } else if (g3 && g3.byte_count > 0) {
-        activeLB = "s3";
-        b0_pct = ((g3.bucket_stats[0].byte_count / g3.byte_count) * 100).toFixed(2) + "%";
-        b1_pct = ((g3.bucket_stats[1].byte_count / g3.byte_count) * 100).toFixed(2) + "%";
-    }
+    // Cari otomatis switch mana yang lagi jadi sumber pengirim (Trafik paling tinggi)
+    const allGroups = [
+        { id: "s1", g: g1 }, 
+        { id: "s2", g: g2 }, 
+        { id: "s3", g: g3 }, 
+        { id: "s4", g: g4 }
+    ];
 
-    // Sebarkan label persentase ke jalur yang sesuai
+    allGroups.forEach(sw => {
+        if (sw.g && sw.g.byte_count > maxBytes) {
+            maxBytes = sw.g.byte_count;
+            activeLB = sw.id;
+            b0_pct = ((sw.g.bucket_stats[0].byte_count / sw.g.byte_count) * 100).toFixed(2) + "%";
+            b1_pct = ((sw.g.bucket_stats[1].byte_count / sw.g.byte_count) * 100).toFixed(2) + "%";
+        }
+    });
+
+    // Sebarkan label persentase ke jalur yang sesuai dengan Arah Trafik
     Object.values(uniqueLinks).forEach(link => {
-        const linkKey = `${link.source}-${link.target}`; // e.g., "s1-s2"
+        const linkKey = `${link.source}-${link.target}`; // Format selalu "sMin-sMax" (e.g., s1-s2)
 
         if (activeLB === "s1") {
-            // Skenario H1 ke H2 (S1 Aktif)
-            if (linkKey === "s1-s2" || linkKey === "s2-s4") {
-                // Jalur 70% (Sesuai coretan Biru)
-                link.usage = 1;
-                link.label = b0_pct;
-            } else if (linkKey === "s1-s3" || linkKey === "s3-s4") {
-                // Jalur 30% (Sesuai coretan Merah)
-                link.usage = 1;
-                link.label = b1_pct;
-            }
-        } else if (activeLB === "s3") {
-            // Skenario H3 ke H4 (S3 Aktif)
-            if (linkKey === "s1-s3" || linkKey === "s1-s2") {
-                // Jalur 50% Pertama (Sesuai coretan Kuning)
-                link.usage = 1;
-                link.label = b0_pct;
-            } else if (linkKey === "s3-s4" || linkKey === "s2-s4") {
-                // Jalur 50% Kedua (Sesuai coretan Hijau)
-                link.usage = 1;
-                link.label = b1_pct;
-            }
+            // Skenario H1 -> H2 (Berawal dari S1, turun ke bawah)
+            if (linkKey === "s1-s2" || linkKey === "s2-s4") { link.usage = 1; link.label = b0_pct; }
+            else if (linkKey === "s1-s3" || linkKey === "s3-s4") { link.usage = 1; link.label = b1_pct; }
+        } 
+        else if (activeLB === "s4") {
+            // Skenario H2 -> H1 (Berawal dari S4, naik ke atas)
+            if (linkKey === "s2-s4" || linkKey === "s1-s2") { link.usage = 1; link.label = b0_pct; }
+            else if (linkKey === "s3-s4" || linkKey === "s1-s3") { link.usage = 1; link.label = b1_pct; }
+        } 
+        else if (activeLB === "s3") {
+            // Skenario H3 -> H4 (Berawal dari S3, melingkar ke kiri)
+            if (linkKey === "s1-s3" || linkKey === "s1-s2") { link.usage = 1; link.label = b0_pct; }
+            else if (linkKey === "s3-s4" || linkKey === "s2-s4") { link.usage = 1; link.label = b1_pct; }
+        } 
+        else if (activeLB === "s2") {
+            // Skenario H4 -> H3 (Berawal dari S2, melingkar ke kanan)
+            if (linkKey === "s1-s2" || linkKey === "s1-s3") { link.usage = 1; link.label = b0_pct; }
+            else if (linkKey === "s2-s4" || linkKey === "s3-s4") { link.usage = 1; link.label = b1_pct; }
         }
 
         links.push(link);
