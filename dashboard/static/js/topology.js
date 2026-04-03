@@ -1,3 +1,6 @@
+// Deklarasikan di bagian paling atas file topology.js
+let currentSelectedSwitch = "s1";
+
 // 1. Inisialisasi
 const topoContainer = document.getElementById("topo-container");
 const svg = d3.select("#topo-svg");
@@ -224,4 +227,86 @@ function dragended(event, d) {
     if (!event.active) simulation.alphaTarget(0);
     d.fx = null;
     d.fy = null;
+}
+
+
+// Tambahkan fungsi ini di dalam dashboard/static/js/topology.js
+
+function updateLBTable(groupsData) {
+    const tableBody = document.getElementById("lb-table-body");
+    let activeGroup = null;
+
+    if (groupsData) {
+        groupsData.forEach(swGroup => {
+            const dpid = Object.keys(swGroup)[0];
+            const groups = swGroup[dpid];
+            groups.forEach(g => {
+                // Mencari group yang sedang aktif dilewati paket
+                if (g.packet_count > 0) activeGroup = g;
+            });
+        });
+    }
+
+    if (!activeGroup) {
+        tableBody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 20px;">Menunggu trafik iperf...</td></tr>`;
+        return;
+    }
+
+    const b0 = activeGroup.bucket_stats[0];
+    const b1 = activeGroup.bucket_stats[1];
+    
+    // Perhitungan Total
+    const totalPackets = activeGroup.packet_count;
+    const totalBytes = activeGroup.byte_count;
+
+    // Perhitungan Persentase Realita
+    const p0 = totalPackets > 0 ? ((b0.packet_count / totalPackets) * 100).toFixed(2) : 0;
+    const p1 = totalPackets > 0 ? ((b1.packet_count / totalPackets) * 100).toFixed(2) : 0;
+
+    // Masukkan semua baris parameter ke dalam tabel
+    tableBody.innerHTML = `
+        <tr>
+            <td>Packet Count</td>
+            <td>${b0.packet_count.toLocaleString()}</td>
+            <td>${b1.packet_count.toLocaleString()}</td>
+            <td>${totalPackets.toLocaleString()}</td>
+        </tr>
+        <tr>
+            <td>Byte Count</td>
+            <td>~${(b0.byte_count / 1e9).toFixed(2)} GB</td>
+            <td>~${(b1.byte_count / 1e9).toFixed(2)} GB</td>
+            <td>~${(totalBytes / 1e9).toFixed(2)} GB</td>
+        </tr>
+        <tr>
+            <td>Persentase Realita</td>
+            <td>${p0}%</td>
+            <td>${p1}%</td>
+            <td>100%</td>
+        </tr>
+    `;
+}
+
+
+// Panggil fungsi di dalam socket.onmessage
+socket.onmessage = function(event) {
+    const incoming = JSON.parse(event.data);
+    if (incoming.type === 'topology_update') {
+        // ... kode topology yang sudah ada ...
+        updateLBTable(incoming.data.groups); 
+    }
+};
+
+
+// Fungsi untuk menangani klik tombol
+function changeActiveSwitch(swId) {
+    currentSelectedSwitch = swId;
+    
+    // Reset semua tombol ke status tidak aktif
+    document.querySelectorAll('.sw-btn').forEach(btn => btn.classList.remove('active'));
+    
+    // Set tombol yang diklik menjadi aktif
+    document.getElementById(`btn-${swId}`).classList.add('active');
+    
+    console.log("Menampilkan data untuk switch: " + swId);
+    // Tabel akan otomatis terupdate pada push data WebSocket berikutnya
 }

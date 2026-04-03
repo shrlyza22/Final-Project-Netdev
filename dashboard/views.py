@@ -11,7 +11,7 @@ def index(request):
 
 def topology_api(request):
     data = get_topology_data()
-    return JsonResponse(data)
+    return JsonResponse(data, safe=False)
 
 def node_control(request, node_id, action):
     # Logika aslinya nanti nembak API Ryu buat hapus flow atau matiin port

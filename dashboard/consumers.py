@@ -20,29 +20,38 @@ class TopologyConsumer(AsyncWebsocketConsumer):
             try:
                 loop = asyncio.get_event_loop()
                 
-                # 1. Ambil data Switch & Link (Jalur Resmi)
+                # 1. Ambil data Switch & Link (Untuk Gambar Topologi)
                 sw_res = await loop.run_in_executor(None, lambda: requests.get(f"http://{RYU_IP}:8080/v1.0/topology/switches", timeout=2))
                 ln_res = await loop.run_in_executor(None, lambda: requests.get(f"http://{RYU_IP}:8080/v1.0/topology/links", timeout=2))
                 
-                if sw_res.status_code == 200 and ln_res.status_code == 200:
+                if sw_res.status_code == 200:
                     switches = sw_res.json()
-                    links = ln_res.json()
+                    links = ln_res.json() if ln_res.status_code == 200 else []
                     
-                    # 2. 🔥 JALUR NINJA: Ambil Flow Stats untuk deteksi Host
-                    # Kita looping setiap switch yang ada untuk ambil table flow-nya
                     all_flows = []
+                    all_groups = [] # Tambahkan list untuk menampung data Group/Bucket
+
                     for sw in switches:
-                        dpid = sw['dpid']
-                        # Nembak endpoint stats flow per switch
-                        f_res = await loop.run_in_executor(None, lambda: requests.get(f"http://{RYU_IP}:8080/stats/flow/{int(dpid, 16)}", timeout=2))
+                        dpid_hex = sw['dpid']
+                        dpid_int = int(dpid_hex, 16)
+                        
+                        # 2. Ambil Flow Stats (Untuk deteksi Host/Garis)
+                        f_res = await loop.run_in_executor(None, lambda: requests.get(f"http://{RYU_IP}:8080/stats/flow/{dpid_int}", timeout=2))
                         if f_res.status_code == 200:
                             all_flows.append(f_res.json())
 
-                    # 3. Gabungkan data
+                        # 3. 🔥 TAMBAHAN: Ambil Group Stats (Untuk Isi Tabel Load Balancer)
+                        # Ini yang akan mengambil data packet_count dan byte_count per Bucket
+                        g_res = await loop.run_in_executor(None, lambda: requests.get(f"http://{RYU_IP}:8080/stats/group/{dpid_int}", timeout=2))
+                        if g_res.status_code == 200:
+                            all_groups.append(g_res.json())
+
+                    # 4. Gabungkan semua data untuk dikirim ke Frontend
                     combined_data = {
                         'switches': switches,
                         'links': links,
-                        'flows': all_flows  # Kita kirim data flow mentah ke frontend
+                        'flows': all_flows,
+                        'groups': all_groups  # Data ini yang akan dibaca oleh fungsi updateLBTable di JS
                     }
                     
                     await self.send(text_data=json.dumps({
@@ -51,6 +60,7 @@ class TopologyConsumer(AsyncWebsocketConsumer):
                     }))
                     
             except Exception as e:
-                print(f"Error Jalur Ninja (Flow Stats): {e}")
+                print(f"Error Update Data Ryu: {e}")
             
-            await asyncio.sleep(5)
+            # Anda bisa mempercepat sleep menjadi 2 atau 3 agar tabel terasa lebih real-time
+            await asyncio.sleep(3)

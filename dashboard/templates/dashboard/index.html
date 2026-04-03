@@ -45,6 +45,21 @@
 
         h3 { color: var(--accent); }
 
+        #lb-table-body td {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        #lb-table-body tr:last-child td {
+            border-bottom: none;
+            font-weight: bold;
+            color: var(--accent);
+        }
+
+        #load-balancer-stats {
+            max-width: 100%;
+            overflow-x: auto; /* Biar kalau di HP bisa di-scroll, gak ngerusak layout */
+        }
+
         #topo-container {
             width: 100%;
             height: 500px;
@@ -84,6 +99,40 @@
             border-top: 1px solid #eee;
             margin: 40px 0;
         }
+
+        /* Gaya untuk Wadah Tombol (Biar berjejer ke samping) */
+        #switch-selector {
+            display: flex;
+            gap: 12px;
+            margin: 20px 0;
+            justify-content: center;
+        }
+
+        /* Gaya Dasar Tombol */
+        .sw-btn {
+            background-color: white;
+            border: 1px solid #ddd;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #2c3e50;
+            transition: all 0.2s ease;
+        }
+
+        /* Gaya saat kursor menempel (Hover) */
+        .sw-btn:hover {
+            background-color: #f8fafc;
+            border-color: #3498db;
+        }
+
+        /* Gaya saat tombol AKTIF */
+        .sw-btn.active {
+            background-color: #3498db;
+            color: white;
+            border-color: #3498db;
+            box-shadow: 0 4px 6px rgba(52, 152, 219, 0.2);
+        }
     </style>
 </head>
 
@@ -108,6 +157,42 @@
     </div>
 
     <hr>
+
+
+    <div class="card" id="load-balancer-stats" style="margin-top: 20px;">
+        <h3>Statistik Load Balancer (Real-time)</h3>
+
+        <div id="switch-selector" style="margin: 15px 0; display: flex; gap: 10px;">
+        <button onclick="changeActiveSwitch('s1')" class="sw-btn active" id="btn-s1">Switch 1</button>
+        <button onclick="changeActiveSwitch('s2')" class="sw-btn" id="btn-s2">Switch 2</button>
+        <button onclick="changeActiveSwitch('s3')" class="sw-btn" id="btn-s3">Switch 3</button>
+        <button onclick="changeActiveSwitch('s4')" class="sw-btn" id="btn-s4">Switch 4</button>
+         </div>
+
+        <table style="width: 100%; border-collapse: collapse; text-align: left; color: #333; table-layout: fixed;">
+            </table>
+
+        <table style="width: 100%; border-collapse: collapse; text-align: left; color: #333; table-layout: fixed;">
+            <thead>
+                <tr style="border-bottom: 2px solid #eee;">
+                    <th style="padding: 10px; width: 25%;">Parameter</th>
+                    <th style="padding: 10px; width: 25%;">Jalur Kiri (B0)</th>
+                    <th style="padding: 10px; width: 25%;">Jalur Kanan (B1)</th>
+                    <th style="padding: 10px; width: 25%;">Total</th>
+                </tr>
+            </thead>
+            <tbody id="lb-table-body">
+                <tr>
+                    <td>Packet Count</td>
+                    <td id="b0-packet">0</td>
+                    <td id="b1-packet">0</td>
+                    <td id="total-packet">0</td>
+                </tr>
+                </tbody>
+        </table>
+    </div>
+
+    <hr> 
 
     <h2>Live Monitoring</h2>
     <p>
