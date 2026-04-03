@@ -115,6 +115,7 @@ function formatRyuData(ryuJson) {
     let links = [];
     let groupMap = {};
 
+    // 1. Ambil data Group Stats (Tabel Load Balancer)
     if (ryuJson.groups) {
         ryuJson.groups.forEach(g => {
             const dpid = Object.keys(g)[0];
@@ -122,41 +123,86 @@ function formatRyuData(ryuJson) {
         });
     }
 
+    // 2. Mapping Nodes (Switch)
     if (ryuJson.switches) {
         ryuJson.switches.forEach(sw => nodes.push({ id: "s" + parseInt(sw.dpid, 16), type: "switch" }));
     }
 
+    // 3. Deduplikasi Link (Biar garis gak numpuk)
+    let uniqueLinks = {};
     if (ryuJson.links) {
         ryuJson.links.forEach(l => {
-            const srcId = "s" + parseInt(l.src.dpid, 16);
-            const dstId = "s" + parseInt(l.dst.dpid, 16);
-            const srcInt = parseInt(l.src.dpid, 16);
-            let usage = 0, label = "";
+            const sIdInt = parseInt(l.src.dpid, 16);
+            const dIdInt = parseInt(l.dst.dpid, 16);
+            
+            // Urutkan ID biar s1-s2 dan s2-s1 jadi satu jalur yang sama
+            const minId = Math.min(sIdInt, dIdInt);
+            const maxId = Math.max(sIdInt, dIdInt);
+            const linkKey = `s${minId}-s${maxId}`;
 
-            // Logika Persentase S1 & S3
-            if (srcId === "s1" && (dstId === "s2" || dstId === "s3")) {
-                usage = 1;
-                const s = groupMap[srcInt];
-                if (s && s.byte_count > 0) {
-                    label = (dstId === "s2") ? 
-                        ((s.bucket_stats[0].byte_count/s.byte_count)*100).toFixed(2)+"%" : 
-                        ((s.bucket_stats[1].byte_count/s.byte_count)*100).toFixed(2)+"%";
-                } else { label = (dstId === "s2") ? "70%" : "30%"; }
-            } else if (srcId === "s3" && (dstId === "s1" || dstId === "s4")) {
-                usage = 1;
-                const s = groupMap[srcInt];
-                if (s && s.byte_count > 0) {
-                    label = (dstId === "s1") ? 
-                        ((s.bucket_stats[0].byte_count/s.byte_count)*100).toFixed(2)+"%" : 
-                        ((s.bucket_stats[1].byte_count/s.byte_count)*100).toFixed(2)+"%";
-                } else { label = (dstId === "s1") ? "50%" : "50%"; }
+            if (!uniqueLinks[linkKey]) {
+                uniqueLinks[linkKey] = {
+                    source: `s${minId}`,
+                    target: `s${maxId}`,
+                    usage: 0,
+                    status: l.status || "UP",
+                    label: ""
+                };
             }
-
-            links.push({ source: srcId, target: dstId, usage, status: l.status || "UP", label });
         });
     }
 
-    // Injeksi Host (Agar tidak hilang saat update)
+    // 🔥 4. ALGORITMA PENYEBARAN PERSENTASE SESUAI JALUR
+    const g1 = groupMap[1]; // S1 Load Balancer (Skema H1-H2)
+    const g3 = groupMap[3]; // S3 Load Balancer (Skema H3-H4)
+
+    let activeLB = null;
+    let b0_pct = "";
+    let b1_pct = "";
+
+    // Cek Load Balancer mana yang lagi dapet trafik iperf
+    if (g1 && g1.byte_count > 0) {
+        activeLB = "s1";
+        b0_pct = ((g1.bucket_stats[0].byte_count / g1.byte_count) * 100).toFixed(2) + "%";
+        b1_pct = ((g1.bucket_stats[1].byte_count / g1.byte_count) * 100).toFixed(2) + "%";
+    } else if (g3 && g3.byte_count > 0) {
+        activeLB = "s3";
+        b0_pct = ((g3.bucket_stats[0].byte_count / g3.byte_count) * 100).toFixed(2) + "%";
+        b1_pct = ((g3.bucket_stats[1].byte_count / g3.byte_count) * 100).toFixed(2) + "%";
+    }
+
+    // Sebarkan label persentase ke jalur yang sesuai
+    Object.values(uniqueLinks).forEach(link => {
+        const linkKey = `${link.source}-${link.target}`; // e.g., "s1-s2"
+
+        if (activeLB === "s1") {
+            // Skenario H1 ke H2 (S1 Aktif)
+            if (linkKey === "s1-s2" || linkKey === "s2-s4") {
+                // Jalur 70% (Sesuai coretan Biru)
+                link.usage = 1;
+                link.label = b0_pct;
+            } else if (linkKey === "s1-s3" || linkKey === "s3-s4") {
+                // Jalur 30% (Sesuai coretan Merah)
+                link.usage = 1;
+                link.label = b1_pct;
+            }
+        } else if (activeLB === "s3") {
+            // Skenario H3 ke H4 (S3 Aktif)
+            if (linkKey === "s1-s3" || linkKey === "s1-s2") {
+                // Jalur 50% Pertama (Sesuai coretan Kuning)
+                link.usage = 1;
+                link.label = b0_pct;
+            } else if (linkKey === "s3-s4" || linkKey === "s2-s4") {
+                // Jalur 50% Kedua (Sesuai coretan Hijau)
+                link.usage = 1;
+                link.label = b1_pct;
+            }
+        }
+
+        links.push(link);
+    });
+
+    // 5. Injeksi Host (Agar tidak hilang)
     const staticHosts = [{id: "h1", sw: "s1"}, {id: "h4", sw: "s2"}, {id: "h3", sw: "s3"}, {id: "h2", sw: "s4"}];
     staticHosts.forEach(h => {
         if (nodes.find(n => n.id === h.sw)) {

@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard NetDev - Kelompok 1</title>
 
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
     <script src="https://d3js.org/d3.v7.min.js"></script>
 
@@ -19,16 +19,7 @@
             color: #333;
             background: var(--bg);
             margin: 0;
-            padding: 40px;
-        }
-
-        .container {
-            max-width: 1100px;
-            margin: auto;
-            background: white;
-            padding: 40px;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            padding: 20px; /* Dikurangi dari 40px agar tidak terlalu sesak */
         }
 
         .main-wrapper {
@@ -45,35 +36,20 @@
             padding-bottom: 10px;
             color: var(--primary);
             text-align: center;
+            font-size: 1.8rem;
         }
 
         h2 {
             border-left: 5px solid var(--accent);
             padding-left: 15px;
-            margin-top: 40px;
+            margin-top: 30px;
             color: var(--primary);
-        }
-
-        h3 { color: var(--accent); }
-
-        #lb-table-body td {
-            padding: 10px;
-            border-bottom: 1px solid #eee;
-        }
-        #lb-table-body tr:last-child td {
-            border-bottom: none;
-            font-weight: bold;
-            color: var(--accent);
-        }
-
-        #load-balancer-stats {
-            max-width: 100%;
-            overflow-x: auto; /* Biar kalau di HP bisa di-scroll, gak ngerusak layout */
+            font-size: 1.4rem;
         }
 
         #topo-container {
             width: 100%;
-            height: 500px;
+            height: 450px;
             border: 1px solid #ddd;
             border-radius: 8px;
             margin: 20px 0;
@@ -82,6 +58,7 @@
             overflow: hidden;
         }
 
+        /* TAB NAVIGATION STYLES */
         .tab-navigation-wrapper {
             display: flex;
             justify-content: center;
@@ -116,133 +93,39 @@
             background: white;
         }
 
-
         #error-overlay {
             display: none;
             position: absolute;
-            top: 50%;
-            left: 50%;
+            top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             text-align: center;
             color: #e74c3c;
             background: rgba(255, 255, 255, 0.9);
-            padding: 20px;
+            padding: 15px;
             border-radius: 8px;
-            border: 1px solid #ffccd5;
             z-index: 10;
-        }
-
-        .card {
-            border: 1px solid #eee;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 20px;
-            background: #fff;
-        }
-
-        hr {
-            border: 0;
-            border-top: 1px solid #eee;
-            margin: 40px 0;
-        }
-
-        /* Gaya untuk Wadah Tombol (Biar berjejer ke samping) */
-        #switch-selector {
-            display: flex;
-            gap: 12px;
-            margin: 20px 0;
-            justify-content: center;
-        }
-
-        /* Gaya Dasar Tombol */
-        .sw-btn {
-            background-color: white;
-            border: 1px solid #ddd;
-            padding: 10px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            color: #2c3e50;
-            transition: all 0.2s ease;
-        }
-
-        /* Gaya saat kursor menempel (Hover) */
-        .sw-btn:hover {
-            background-color: #f8fafc;
-            border-color: #3498db;
-        }
-
-        /* Gaya saat tombol AKTIF */
-        .sw-btn.active {
-            background-color: #3498db;
-            color: white;
-            border-color: #3498db;
-            box-shadow: 0 4px 6px rgba(52, 152, 219, 0.2);
         }
     </style>
 </head>
 
 <body>
-<div class="container">
+<div class="main-wrapper">
 
     <h1>Final Project - Kelompok 1</h1>
 
-    <h2>Jaringan & Topologi</h2>
-    <p>
-        Visualisasi <code>diamond_topo.py</code> yang berjalan di <strong>VM2</strong> 
-        dan dikontrol oleh <strong>Ryu Controller (VM1)</strong>.
-    </p>
-
-    <div id="topo-container">
-        <div id="error-overlay">
-            <strong>❌ Gagal Menarik Data Ryu</strong><br>
-            <span id="error-text">Pastikan VM1 dan API Topology aktif.</span>
+    <section>
+        <h2>Jaringan & Topologi</h2>
+        <p>Visualisasi <code>diamond_topo.py</code> di <strong>VM2</strong> dikontrol oleh <strong>Ryu Controller (VM1)</strong>.</p>
+        <div id="topo-container">
+            <div id="error-overlay">
+                <strong>❌ Gagal Menarik Data Ryu</strong><br>
+                <span id="error-text">Pastikan VM1 dan API Topology aktif.</span>
+            </div>
+            <svg id="topo-svg" width="100%" height="100%"></svg>
         </div>
-        
-        <svg id="topo-svg" width="100%" height="100%"></svg>
-    </div>
+    </section>
 
     <hr>
-
-
-    <div class="card" id="load-balancer-stats" style="margin-top: 20px;">
-        <h3>Statistik Load Balancer (Real-time)</h3>
-
-        <!-- <span id="active-sw-label" style="font-size: 14px; color: var(--accent); margin-left: 10px;">
-        </span> -->
-    </h3>
-    
-    <div id="switch-selector">
-        <button onclick="changeActiveSwitch('1')" class="sw-btn active" id="btn-s1">Switch 1</button>
-        <button onclick="changeActiveSwitch('2')" class="sw-btn" id="btn-s2">Switch 2</button>
-        <button onclick="changeActiveSwitch('3')" class="sw-btn" id="btn-s3">Switch 3</button>
-        <button onclick="changeActiveSwitch('4')" class="sw-btn" id="btn-s4">Switch 4</button>
-    </div>
-
-        <table style="width: 100%; border-collapse: collapse; text-align: left; color: #333; table-layout: fixed;">
-            </table>
-
-        <table style="width: 100%; border-collapse: collapse; text-align: left; color: #333; table-layout: fixed;">
-            <thead>
-                <tr style="border-bottom: 2px solid #eee;">
-                    <th style="padding: 10px; width: 25%;">Parameter</th>
-                    <th style="padding: 10px; width: 25%;">Jalur Kiri (B0)</th>
-                    <th style="padding: 10px; width: 25%;">Jalur Kanan (B1)</th>
-                    <th style="padding: 10px; width: 25%;">Total</th>
-                </tr>
-            </thead>
-            <tbody id="lb-table-body">
-                <tr>
-                    <td>Packet Count</td>
-                    <td id="b0-packet">0</td>
-                    <td id="b1-packet">0</td>
-                    <td id="total-packet">0</td>
-                </tr>
-                </tbody>
-        </table>
-    </div>
-
-    <hr> 
 
     <section class="monitoring-section">
         <h2>Live Monitoring</h2>
@@ -286,51 +169,34 @@
             </div>
         </div>
     </section>
-
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="{% static 'js/topology.js' %}"></script>
-
 <script>
-function loadTopology() {
-    const errorOverlay = document.getElementById("error-overlay");
-    const errorText = document.getElementById("error-text");
-    const svgElement = document.getElementById("topo-svg");
+    function loadTopology() {
+        const errorOverlay = document.getElementById("error-overlay");
+        const errorText = document.getElementById("error-text");
+        const svgElement = document.getElementById("topo-svg");
 
-    fetch("/api/topology/")
-    .then(response => {
-        if (!response.ok) throw new Error("Server Ryu tidak merespons (404/500)");
-        return response.json();
-    })
-    .then(data => {
-        // Cek jika data kosong dari Ryu
-        if (!data.nodes || data.nodes.length === 0) {
-            throw new Error("Data Topologi Kosong (Check Ryu App)");
-        }
-
-        // Berhasil: Sembunyikan error dan gambar
-        errorOverlay.style.display = "none";
-        svgElement.style.opacity = "1";
-        
-        console.log("Topology Data Loaded:", data);
-        drawTopology(data); 
-    })
-    .catch(error => {
-        console.error("Kesalahan API:", error);
-        
-        // Gagal: Tampilkan pesan error, sembunyikan SVG
-        svgElement.style.opacity = "0.1"; // buat agak transparan kalau error
-        errorOverlay.style.display = "block";
-        errorText.innerText = error.message;
-    });
-}
-
-// Auto load saat halaman terbuka
-window.onload = loadTopology;
+        fetch("/api/topology/")
+        .then(response => {
+            if (!response.ok) throw new Error("Server Ryu tidak merespons");
+            return response.json();
+        })
+        .then(data => {
+            if (!data.nodes || data.nodes.length === 0) throw new Error("Data Topologi Kosong");
+            errorOverlay.style.display = "none";
+            svgElement.style.opacity = "1";
+            drawTopology(data); 
+        })
+        .catch(error => {
+            svgElement.style.opacity = "0.1";
+            errorOverlay.style.display = "block";
+            errorText.innerText = error.message;
+        });
+    }
+    window.onload = loadTopology;
 </script>
-
-<script src="{% static 'js/topology.js' %}"></script>
-
 </body>
 </html>
