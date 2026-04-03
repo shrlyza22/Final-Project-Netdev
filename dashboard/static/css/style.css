@@ -138,6 +138,13 @@ iframe {
     background: #111;
 }
 
+.sw-btn.active {
+    background-color: #3498db !important; /* Warna aksen biru */
+    color: white !important;
+    border-color: #2980b9;
+    box-shadow: 0 4px 6px rgba(52, 152, 219, 0.3);
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-track { background: var(--bg-dark); }

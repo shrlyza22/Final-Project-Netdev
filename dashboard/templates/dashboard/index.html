@@ -162,12 +162,16 @@
     <div class="card" id="load-balancer-stats" style="margin-top: 20px;">
         <h3>Statistik Load Balancer (Real-time)</h3>
 
-        <div id="switch-selector" style="margin: 15px 0; display: flex; gap: 10px;">
-        <button onclick="changeActiveSwitch('s1')" class="sw-btn active" id="btn-s1">Switch 1</button>
-        <button onclick="changeActiveSwitch('s2')" class="sw-btn" id="btn-s2">Switch 2</button>
-        <button onclick="changeActiveSwitch('s3')" class="sw-btn" id="btn-s3">Switch 3</button>
-        <button onclick="changeActiveSwitch('s4')" class="sw-btn" id="btn-s4">Switch 4</button>
-         </div>
+        <!-- <span id="active-sw-label" style="font-size: 14px; color: var(--accent); margin-left: 10px;">
+        </span> -->
+    </h3>
+    
+    <div id="switch-selector">
+        <button onclick="changeActiveSwitch('1')" class="sw-btn active" id="btn-s1">Switch 1</button>
+        <button onclick="changeActiveSwitch('2')" class="sw-btn" id="btn-s2">Switch 2</button>
+        <button onclick="changeActiveSwitch('3')" class="sw-btn" id="btn-s3">Switch 3</button>
+        <button onclick="changeActiveSwitch('4')" class="sw-btn" id="btn-s4">Switch 4</button>
+    </div>
 
         <table style="width: 100%; border-collapse: collapse; text-align: left; color: #333; table-layout: fixed;">
             </table>
@@ -202,8 +206,7 @@
     <div style="display: flex; gap: 20px; flex-wrap: wrap;">
         <div class="card" style="flex: 1; min-width: 450px;">
             <h3>Traffic Utilization (Grafana)</h3>
-            <iframe src="http://netdev1@netdev1.eastasia.cloudapp.azure.com:3000/d-solo/xxx/panel-id?orgId=1&refresh=5s"
-                    width="100%" height="300" frameborder="0"></iframe>
+            <iframe src="http://netdev1.eastasia.cloudapp.azure.com:3000/d-solo/adqkgrv/new-dashboard?orgId=1&from=1775194264833&to=1775215864833&timezone=browser&panelId=panel-1&__feature.dashboardScene=true" width="450" height="200" frameborder="0"></iframe>
         </div>
     </div>
 

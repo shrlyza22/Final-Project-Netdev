@@ -1,5 +1,6 @@
 // Deklarasikan di bagian paling atas file topology.js
-let currentSelectedSwitch = "s1";
+// let currentSelectedSwitch = "s1";
+let selectedSwitchId = "1";
 
 // 1. Inisialisasi
 const topoContainer = document.getElementById("topo-container");
@@ -232,50 +233,60 @@ function dragended(event, d) {
 
 // Tambahkan fungsi ini di dalam dashboard/static/js/topology.js
 
+// dashboard/static/js/topology.js
+
 function updateLBTable(groupsData) {
     const tableBody = document.getElementById("lb-table-body");
     let activeGroup = null;
 
-    if (groupsData) {
+    if (groupsData && Array.isArray(groupsData)) {
         groupsData.forEach(swGroup => {
-            const dpid = Object.keys(swGroup)[0];
-            const groups = swGroup[dpid];
-            groups.forEach(g => {
-                // Mencari group yang sedang aktif dilewati paket
-                if (g.packet_count > 0) activeGroup = g;
-            });
+            // Mengambil key DPID (bisa berupa "1" atau "0000000000000001")
+            const dpidKey = Object.keys(swGroup)[0]; 
+            
+            // Konversi dpidKey ke integer agar konsisten (misal "0...01" jadi 1)
+            const dpidInt = parseInt(dpidKey, 16); 
+            
+            // Bandingkan dengan switch yang dipilih (1, 2, 3, atau 4)
+            if (dpidInt === parseInt(selectedSwitchId)) {
+                const groups = swGroup[dpidKey];
+                if (groups && groups.length > 0) {
+                    activeGroup = groups[0]; 
+                }
+            }
         });
     }
 
+    // Jika data tidak ditemukan untuk switch yang dipilih, tampilkan 0
     if (!activeGroup) {
-        tableBody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 20px;">Menunggu trafik iperf...</td></tr>`;
+        tableBody.innerHTML = `
+            <tr><td>Packet Count</td><td>0</td><td>0</td><td>0</td></tr>
+            <tr><td>Byte Count</td><td>~0 GB</td><td>~0 GB</td><td>~0 GB</td></tr>
+            <tr><td>Persentase Realita</td><td>0%</td><td>0%</td><td>0%</td></tr>
+        `;
         return;
     }
 
     const b0 = activeGroup.bucket_stats[0];
     const b1 = activeGroup.bucket_stats[1];
-    
-    // Perhitungan Total
-    const totalPackets = activeGroup.packet_count;
-    const totalBytes = activeGroup.byte_count;
+    const totalP = activeGroup.packet_count;
+    const totalB = activeGroup.byte_count;
 
-    // Perhitungan Persentase Realita
-    const p0 = totalPackets > 0 ? ((b0.packet_count / totalPackets) * 100).toFixed(2) : 0;
-    const p1 = totalPackets > 0 ? ((b1.packet_count / totalPackets) * 100).toFixed(2) : 0;
+    const p0 = ((b0.byte_count / totalB) * 100).toFixed(2);
+    const p1 = ((b1.byte_count/ totalB) * 100).toFixed(2);
 
-    // Masukkan semua baris parameter ke dalam tabel
     tableBody.innerHTML = `
         <tr>
             <td>Packet Count</td>
             <td>${b0.packet_count.toLocaleString()}</td>
             <td>${b1.packet_count.toLocaleString()}</td>
-            <td>${totalPackets.toLocaleString()}</td>
+            <td>${totalP.toLocaleString()}</td>
         </tr>
         <tr>
             <td>Byte Count</td>
             <td>~${(b0.byte_count / 1e9).toFixed(2)} GB</td>
             <td>~${(b1.byte_count / 1e9).toFixed(2)} GB</td>
-            <td>~${(totalBytes / 1e9).toFixed(2)} GB</td>
+            <td>~${(totalB / 1e9).toFixed(2)} GB</td>
         </tr>
         <tr>
             <td>Persentase Realita</td>
@@ -298,15 +309,27 @@ socket.onmessage = function(event) {
 
 
 // Fungsi untuk menangani klik tombol
-function changeActiveSwitch(swId) {
-    currentSelectedSwitch = swId;
+
+function changeActiveSwitch(swNum) {
+    // 1. Simpan nomor switch yang dipilih ke variabel global
+    selectedSwitchId = swNum.toString();
     
-    // Reset semua tombol ke status tidak aktif
-    document.querySelectorAll('.sw-btn').forEach(btn => btn.classList.remove('active'));
+    // 2. Hapus kelas 'active' dari semua tombol
+    document.querySelectorAll('.sw-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
     
-    // Set tombol yang diklik menjadi aktif
-    document.getElementById(`btn-${swId}`).classList.add('active');
+    // 3. Tambahkan kelas 'active' ke tombol yang baru saja diklik
+    const activeBtn = document.getElementById(`btn-s${swNum}`);
+    if (activeBtn) {
+        activeBtn.classList.add('active');
+    }
+
+    // 4. Update judul label (Opsional, agar lebih jelas)
+    const labelElement = document.getElementById("active-sw-label");
+    if (labelElement) {
+        labelElement.innerText = `(Switch ${swNum})`;
+    }
     
-    console.log("Menampilkan data untuk switch: " + swId);
-    // Tabel akan otomatis terupdate pada push data WebSocket berikutnya
+    console.log("Menampilkan data untuk Switch:", selectedSwitchId);
 }
