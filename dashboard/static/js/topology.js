@@ -112,21 +112,49 @@ function formatRyuData(ryuJson) {
         });
     }
 
-    // Skenario Persentase
-    const g1 = groupMap[1];
-    let b0 = "", b1 = "", activeLB = "s1";
-    if (g1 && g1.byte_count > 0) {
-        b0 = ((g1.bucket_stats[0].byte_count/g1.byte_count)*100).toFixed(2) + "%";
-        b1 = ((g1.bucket_stats[1].byte_count/g1.byte_count)*100).toFixed(2) + "%";
-    }
+    // --- GANTI MULAI DARI SINI ---
+    let links = Object.values(uniqueLinks);
 
-    let links = [];
-    Object.values(uniqueLinks).forEach(link => {
-        const k = `${link.source}-${link.target}`;
-        if (k === "s1-s2" || k === "s2-s4") { link.usage = 1; link.label = b0; }
-        else if (k === "s1-s3" || k === "s3-s4") { link.usage = 1; link.label = b1; }
-        links.push(link);
+    // Otomatis mencari Switch mana yang sedang mengirim data (Load Balancing)
+    Object.keys(groupMap).forEach(dpid => {
+        const g = groupMap[dpid];
+        
+        // Cek jika switch ini punya trafik aktif
+        if (g && g.byte_count > 0) {
+            let b0 = ((g.bucket_stats[0].byte_count / g.byte_count) * 100).toFixed(2) + "%";
+            let b1 = ((g.bucket_stats[1].byte_count / g.byte_count) * 100).toFixed(2) + "%";
+
+            // Skenario 1: Jika Switch 1 yang mengirim (h1 ke h2)
+            if (dpid == "1") {
+                let l1 = links.find(l => (l.source === "s1" && l.target === "s2") || (l.source === "s2" && l.target === "s1"));
+                let l2 = links.find(l => (l.source === "s1" && l.target === "s3") || (l.source === "s3" && l.target === "s1"));
+                if(l1) { l1.usage = 1; l1.label = b0; } // S1 ke S2
+                if(l2) { l2.usage = 1; l2.label = b1; } // S1 ke S3
+            }
+            // Skenario 2: Jika Switch 3 yang mengirim (h3 ke h4)
+            else if (dpid == "3") {
+                let l1 = links.find(l => (l.source === "s1" && l.target === "s3") || (l.source === "s3" && l.target === "s1")); 
+                let l2 = links.find(l => (l.source === "s3" && l.target === "s4") || (l.source === "s4" && l.target === "s3")); 
+                if(l1) { l1.usage = 1; l1.label = b0; } // S3 ke S1
+                if(l2) { l2.usage = 1; l2.label = b1; } // S3 ke S4
+            }
+            // Skenario 3: Jika Switch 4 yang mengirim (h2 ke h1)
+            else if (dpid == "4") {
+                let l1 = links.find(l => (l.source === "s2" && l.target === "s4") || (l.source === "s4" && l.target === "s2")); 
+                let l2 = links.find(l => (l.source === "s3" && l.target === "s4") || (l.source === "s4" && l.target === "s3")); 
+                if(l1) { l1.usage = 1; l1.label = b0; } // S4 ke S2
+                if(l2) { l2.usage = 1; l2.label = b1; } // S4 ke S3
+            }
+            // Skenario 4: Jika Switch 2 yang mengirim (h4 ke h3)
+            else if (dpid == "2") {
+                let l1 = links.find(l => (l.source === "s1" && l.target === "s2") || (l.source === "s2" && l.target === "s1")); 
+                let l2 = links.find(l => (l.source === "s2" && l.target === "s4") || (l.source === "s4" && l.target === "s2")); 
+                if(l1) { l1.usage = 1; l1.label = b0; } // S2 ke S1
+                if(l2) { l2.usage = 1; l2.label = b1; } // S2 ke S4
+            }
+        }
     });
+    // --- SAMPAI SINI ---
 
     const staticHosts = [{id: "h1", sw: "s1"}, {id: "h4", sw: "s2"}, {id: "h3", sw: "s3"}, {id: "h2", sw: "s4"}];
     staticHosts.forEach(h => {
