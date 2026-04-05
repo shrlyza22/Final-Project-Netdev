@@ -26,34 +26,8 @@ class TopologyConsumer(AsyncWebsocketConsumer):
                 if sw_res.status_code == 200:
                     switches = sw_res.json()
                     links = ln_res.json() if ln_res.status_code == 200 else []
-                    
-                    # 2. 🔥 JALUR PARALEL: Ambil Flow dan Group BERSAMAAN (Anti-Lag)
-                    # flow_tasks = []
-                    # group_tasks = []
-                    
-                    # for sw in switches:
-                    #     dpid = int(sw['dpid'], 16)
-                    #     # Kita kumpulkan semua request jadi satu
-                    #     flow_tasks.append(loop.run_in_executor(None, lambda d=dpid: requests.get(f"http://{RYU_IP}:8080/stats/flow/{d}", timeout=5)))
-                    #     group_tasks.append(loop.run_in_executor(None, lambda d=dpid: requests.get(f"http://{RYU_IP}:8080/stats/group/{d}", timeout=5)))
-
-                    # # Eksekusi semuanya secara serentak!
-                    # flow_results = await asyncio.gather(*flow_tasks, return_exceptions=True)
-                    # group_results = await asyncio.gather(*group_tasks, return_exceptions=True)
-
-                    # # Bersihkan hasil (Abaikan yang error/timeout)
-                    # all_flows = [r.json() for r in flow_results if not isinstance(r, Exception) and r.status_code == 200]
-                    # all_groups = [r.json() for r in group_results if not isinstance(r, Exception) and r.status_code == 200]
-
-                    # combined_data = {
-                    #     'switches': switches,
-                    #     'links': links,
-                    #     'flows': all_flows,
-                    #     'groups': all_groups  
-                    # }
 
                     # 2. Ambil Group Stats (Satu-satunya yang kepake buat Load Balancer & Persentase)
-                
                     group_tasks = []
                     portdesc_tasks = [] # <-- Tambahan buat ngecek kabel Host putus/nyambung
                     

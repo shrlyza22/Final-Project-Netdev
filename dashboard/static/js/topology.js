@@ -7,10 +7,6 @@ let width = topoContainer.clientWidth;
 let height = 500;
 let lastDataSnapshot = null;
 
-// // TAMBAHKAN INI UNTUK MENYIMPAN HISTORY BYTE SEBELUMNYA
-// let previousGroupBytes = {};
-// let isFirstLoad = true; // <-- Pengaman baru biar gak nyangkut pas awal refresh
-
 // 2. Setup Simulasi (velocityDecay tinggi biar anteng)
 const simulation = d3.forceSimulation()
     .force("link", d3.forceLink().id(d => d.id).distance(150))
