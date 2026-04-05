@@ -182,15 +182,46 @@ function formatRyuData(ryuJson) {
     }
     // --- SAMPAI SINI ---
 
-    const staticHosts = [{id: "h1", sw: "s1"}, {id: "h4", sw: "s2"}, {id: "h3", sw: "s3"}, {id: "h2", sw: "s4"}];
+    // --- GANTI BAGIAN STATIC HOSTS INI SAJA ---
+    // Di topologi Diamond lu, H1, H2, H3, H4 SEMUANYA nyolok di Port nomor 3 pada masing-masing Switch.
+    const staticHosts = [
+        {id: "h1", sw: "s1", port: 3}, 
+        {id: "h4", sw: "s2", port: 3}, 
+        {id: "h3", sw: "s3", port: 3}, 
+        {id: "h2", sw: "s4", port: 3}
+    ];
+
     staticHosts.forEach(h => {
-        if (nodes.find(n => n.id === h.sw)) {
+        let isHostUp = true; // Anggap host nyala dulu
+        const dpid = h.sw.replace('s', ''); // Ubah "s1" jadi "1"
+
+        // Cek status fisik Port 3 dari data PortDesc yang dikirim Python
+        if (ryuJson.portdescs) {
+            const swPortDesc = ryuJson.portdescs.find(pd => Object.keys(pd)[0] == dpid);
+            if (swPortDesc) {
+                const ports = swPortDesc[dpid];
+                const hostPort = ports.find(p => p.port_no == h.port);
+                
+                if (hostPort) {
+                    // Di OpenFlow: state 1 = LINK DOWN (Kabel Putus), config 1 = PORT DOWN.
+                    // Kalau dapet angka 1 di sini, fix berarti kabel host-nya mati!
+                    if (hostPort.state === 1 || hostPort.config === 1) {
+                        isHostUp = false; 
+                    }
+                }
+            }
+        }
+        
+        // Kalau isHostUp lolos (masih true), baru kita izinin digambar ke layar
+        if (isHostUp && nodes.find(n => n.id === h.sw)) {
             nodes.push({ id: h.id, type: "host" });
             links.push({ source: h.id, target: h.sw, usage: 0, status: "UP", label: "" });
         }
     });
+
     return { nodes, links };
 }
+// --- SAMPAI SINI ---
 
 // 9. WebSocket (SINKRONISASI KETAT)
 const socket = new WebSocket('ws://' + window.location.host + '/ws/topology/');
@@ -214,8 +245,24 @@ socket.onmessage = function(event) {
         }
         // --- BATAS PENAMBAHAN ---
 
-        // Kalau baru load atau jumlah switch berubah -> Gambar ulang total
-        if (!lastDataSnapshot || lastDataSnapshot.nodes.length !== newData.nodes.length) {
+        // 🔥 PERUBAHAN UTAMA: Cek juga apakah jumlah LINKS (Garis) berubah! 🔥
+        if (!lastDataSnapshot || 
+            lastDataSnapshot.nodes.length !== newData.nodes.length || 
+            lastDataSnapshot.links.length !== newData.links.length) { 
+
+            // Trik Pro: Simpan koordinat lama biar buletan switch gak mental pas garis dihapus
+            if (lastDataSnapshot) {
+                newData.nodes.forEach(newNode => {
+                    const oldNode = lastDataSnapshot.nodes.find(n => n.id === newNode.id);
+                    if (oldNode) {
+                        newNode.x = oldNode.x;
+                        newNode.y = oldNode.y;
+                        newNode.fx = oldNode.fx;
+                        newNode.fy = oldNode.fy;
+                    }
+                });
+            }
+
             lastDataSnapshot = newData;
             drawTopology(newData);
         } else {
