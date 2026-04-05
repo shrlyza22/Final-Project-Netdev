@@ -13,7 +13,8 @@ class TopologyConsumer(AsyncWebsocketConsumer):
         self.keep_running = False
 
     async def send_stats_loop(self):
-        RYU_IP = "netdev1.eastasia.cloudapp.azure.com" 
+        # RYU_IP = "netdev1.eastasia.cloudapp.azure.com" # Untuk dari local laptop narik data ke Azure
+        RYU_IP = "localhost" # Untuk dari Azure langsung
         
         while self.keep_running:
             try:
