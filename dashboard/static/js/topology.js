@@ -7,6 +7,10 @@ let width = topoContainer.clientWidth;
 let height = 500;
 let lastDataSnapshot = null;
 
+// // TAMBAHKAN INI UNTUK MENYIMPAN HISTORY BYTE SEBELUMNYA
+// let previousGroupBytes = {};
+// let isFirstLoad = true; // <-- Pengaman baru biar gak nyangkut pas awal refresh
+
 // 2. Setup Simulasi (velocityDecay tinggi biar anteng)
 const simulation = d3.forceSimulation()
     .force("link", d3.forceLink().id(d => d.id).distance(150))
@@ -115,45 +119,67 @@ function formatRyuData(ryuJson) {
     // --- GANTI MULAI DARI SINI ---
     let links = Object.values(uniqueLinks);
 
-    // Otomatis mencari Switch mana yang sedang mengirim data (Load Balancing)
+    // 1. Cari switch pengirim UTAMA (Yang Total Datanya Paling Gede)
+    let activeSenderDpid = null;
+    let maxByteCount = 0;
+    let activeGroup = null;
+
     Object.keys(groupMap).forEach(dpid => {
         const g = groupMap[dpid];
-        
-        // Cek jika switch ini punya trafik aktif
-        if (g && g.byte_count > 0) {
-            let b0 = ((g.bucket_stats[0].byte_count / g.byte_count) * 100).toFixed(2) + "%";
-            let b1 = ((g.bucket_stats[1].byte_count / g.byte_count) * 100).toFixed(2) + "%";
-
-            // Skenario 1: Jika Switch 1 yang mengirim (h1 ke h2)
-            if (dpid == "1") {
-                let l1 = links.find(l => (l.source === "s1" && l.target === "s2") || (l.source === "s2" && l.target === "s1"));
-                let l2 = links.find(l => (l.source === "s1" && l.target === "s3") || (l.source === "s3" && l.target === "s1"));
-                if(l1) { l1.usage = 1; l1.label = b0; } // S1 ke S2
-                if(l2) { l2.usage = 1; l2.label = b1; } // S1 ke S3
-            }
-            // Skenario 2: Jika Switch 3 yang mengirim (h3 ke h4)
-            else if (dpid == "3") {
-                let l1 = links.find(l => (l.source === "s1" && l.target === "s3") || (l.source === "s3" && l.target === "s1")); 
-                let l2 = links.find(l => (l.source === "s3" && l.target === "s4") || (l.source === "s4" && l.target === "s3")); 
-                if(l1) { l1.usage = 1; l1.label = b0; } // S3 ke S1
-                if(l2) { l2.usage = 1; l2.label = b1; } // S3 ke S4
-            }
-            // Skenario 3: Jika Switch 4 yang mengirim (h2 ke h1)
-            else if (dpid == "4") {
-                let l1 = links.find(l => (l.source === "s2" && l.target === "s4") || (l.source === "s4" && l.target === "s2")); 
-                let l2 = links.find(l => (l.source === "s3" && l.target === "s4") || (l.source === "s4" && l.target === "s3")); 
-                if(l1) { l1.usage = 1; l1.label = b0; } // S4 ke S2
-                if(l2) { l2.usage = 1; l2.label = b1; } // S4 ke S3
-            }
-            // Skenario 4: Jika Switch 2 yang mengirim (h4 ke h3)
-            else if (dpid == "2") {
-                let l1 = links.find(l => (l.source === "s1" && l.target === "s2") || (l.source === "s2" && l.target === "s1")); 
-                let l2 = links.find(l => (l.source === "s2" && l.target === "s4") || (l.source === "s4" && l.target === "s2")); 
-                if(l1) { l1.usage = 1; l1.label = b0; } // S2 ke S1
-                if(l2) { l2.usage = 1; l2.label = b1; } // S2 ke S4
-            }
+        // Pengirim utama pasti punya byte_count (Gigabyte) jauh lebih besar dari penerima (yang cuma ngirim ACK/Megabyte)
+        if (g && g.byte_count > maxByteCount) {
+            maxByteCount = g.byte_count;
+            activeSenderDpid = dpid;
+            activeGroup = g;
         }
     });
+
+    // 2. Terapkan persentase HANYA dari pengirim utama ke SELURUH JALUR
+    if (activeSenderDpid && activeGroup && maxByteCount > 0) {
+        let b0 = ((activeGroup.bucket_stats[0].byte_count / activeGroup.byte_count) * 100).toFixed(2) + "%";
+        let b1 = ((activeGroup.bucket_stats[1].byte_count / activeGroup.byte_count) * 100).toFixed(2) + "%";
+
+        const findLink = (swA, swB) => links.find(l => 
+            (l.source === swA && l.target === swB) || (l.source === swB && l.target === swA)
+        );
+
+        if (activeSenderDpid == "1") {
+            let l1_1 = findLink("s1", "s2"); let l1_2 = findLink("s2", "s4");
+            if(l1_1) { l1_1.usage = 1; l1_1.label = b0; }
+            if(l1_2) { l1_2.usage = 1; l1_2.label = b0; }
+
+            let l2_1 = findLink("s1", "s3"); let l2_2 = findLink("s3", "s4");
+            if(l2_1) { l2_1.usage = 1; l2_1.label = b1; }
+            if(l2_2) { l2_2.usage = 1; l2_2.label = b1; }
+        }
+        else if (activeSenderDpid == "3") {
+            let l1_1 = findLink("s3", "s1"); let l1_2 = findLink("s1", "s2");
+            if(l1_1) { l1_1.usage = 1; l1_1.label = b0; }
+            if(l1_2) { l1_2.usage = 1; l1_2.label = b0; }
+
+            let l2_1 = findLink("s3", "s4"); let l2_2 = findLink("s4", "s2");
+            if(l2_1) { l2_1.usage = 1; l2_1.label = b1; }
+            if(l2_2) { l2_2.usage = 1; l2_2.label = b1; }
+        }
+        else if (activeSenderDpid == "4") {
+            let l1_1 = findLink("s4", "s2"); let l1_2 = findLink("s2", "s1");
+            if(l1_1) { l1_1.usage = 1; l1_1.label = b0; }
+            if(l1_2) { l1_2.usage = 1; l1_2.label = b0; }
+
+            let l2_1 = findLink("s4", "s3"); let l2_2 = findLink("s3", "s1");
+            if(l2_1) { l2_1.usage = 1; l2_1.label = b1; }
+            if(l2_2) { l2_2.usage = 1; l2_2.label = b1; }
+        }
+        else if (activeSenderDpid == "2") {
+            let l1_1 = findLink("s2", "s1"); let l1_2 = findLink("s1", "s3");
+            if(l1_1) { l1_1.usage = 1; l1_1.label = b0; }
+            if(l1_2) { l1_2.usage = 1; l1_2.label = b0; }
+
+            let l2_1 = findLink("s2", "s4"); let l2_2 = findLink("s4", "s3");
+            if(l2_1) { l2_1.usage = 1; l2_1.label = b1; }
+            if(l2_2) { l2_2.usage = 1; l2_2.label = b1; }
+        }
+    }
     // --- SAMPAI SINI ---
 
     const staticHosts = [{id: "h1", sw: "s1"}, {id: "h4", sw: "s2"}, {id: "h3", sw: "s3"}, {id: "h2", sw: "s4"}];
@@ -172,6 +198,21 @@ socket.onmessage = function(event) {
     const incoming = JSON.parse(event.data);
     if (incoming.type === 'topology_update') {
         const newData = formatRyuData(incoming.data);
+        
+        // --- TAMBAHKAN LOGIKA UI DI SINI ---
+        const errorOverlay = document.getElementById("error-overlay");
+        const svgElement = document.getElementById("topo-svg");
+
+        if (!newData.nodes || newData.nodes.length === 0) {
+            svgElement.style.opacity = "0.1";
+            errorOverlay.style.display = "block";
+            document.getElementById("error-text").innerText = "Data Kosong atau Ryu Controller Mati";
+            return; // Hentikan proses jika tidak ada data
+        } else {
+            errorOverlay.style.display = "none";
+            svgElement.style.opacity = "1";
+        }
+        // --- BATAS PENAMBAHAN ---
 
         // Kalau baru load atau jumlah switch berubah -> Gambar ulang total
         if (!lastDataSnapshot || lastDataSnapshot.nodes.length !== newData.nodes.length) {
@@ -186,15 +227,12 @@ socket.onmessage = function(event) {
                 );
                 
                 if (oldLink) {
-                    // Update atribut tanpa menyentuh object .source dan .target milik D3
                     oldLink.usage = newLink.usage;
                     oldLink.status = newLink.status;
                     oldLink.label = newLink.label;
                 }
             });
 
-            // HAPUS BARIS INI: lastDataSnapshot = newData;
-            
             // Panggil update visual
             updateTopologyVisuals();
         }

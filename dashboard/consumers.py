@@ -13,45 +13,62 @@ class TopologyConsumer(AsyncWebsocketConsumer):
         self.keep_running = False
 
     async def send_stats_loop(self):
-        # Ganti dengan IP Public Azure kamu kalau akses dari luar
         RYU_IP = "netdev1.eastasia.cloudapp.azure.com" 
         
         while self.keep_running:
             try:
                 loop = asyncio.get_event_loop()
                 
-                # 1. Ambil data Switch & Link (Untuk Gambar Topologi)
-                sw_res = await loop.run_in_executor(None, lambda: requests.get(f"http://{RYU_IP}:8080/v1.0/topology/switches", timeout=2))
-                ln_res = await loop.run_in_executor(None, lambda: requests.get(f"http://{RYU_IP}:8080/v1.0/topology/links", timeout=2))
+                # 1. Tarik Topologi Dasar (Timeout diperpanjang jadi 5 detik untuk Azure)
+                sw_res = await loop.run_in_executor(None, lambda: requests.get(f"http://{RYU_IP}:8080/v1.0/topology/switches", timeout=5))
+                ln_res = await loop.run_in_executor(None, lambda: requests.get(f"http://{RYU_IP}:8080/v1.0/topology/links", timeout=5))
                 
                 if sw_res.status_code == 200:
                     switches = sw_res.json()
                     links = ln_res.json() if ln_res.status_code == 200 else []
                     
-                    all_flows = []
-                    all_groups = [] # Tambahkan list untuk menampung data Group/Bucket
+                    # 2. 🔥 JALUR PARALEL: Ambil Flow dan Group BERSAMAAN (Anti-Lag)
+                    # flow_tasks = []
+                    # group_tasks = []
+                    
+                    # for sw in switches:
+                    #     dpid = int(sw['dpid'], 16)
+                    #     # Kita kumpulkan semua request jadi satu
+                    #     flow_tasks.append(loop.run_in_executor(None, lambda d=dpid: requests.get(f"http://{RYU_IP}:8080/stats/flow/{d}", timeout=5)))
+                    #     group_tasks.append(loop.run_in_executor(None, lambda d=dpid: requests.get(f"http://{RYU_IP}:8080/stats/group/{d}", timeout=5)))
 
+                    # # Eksekusi semuanya secara serentak!
+                    # flow_results = await asyncio.gather(*flow_tasks, return_exceptions=True)
+                    # group_results = await asyncio.gather(*group_tasks, return_exceptions=True)
+
+                    # # Bersihkan hasil (Abaikan yang error/timeout)
+                    # all_flows = [r.json() for r in flow_results if not isinstance(r, Exception) and r.status_code == 200]
+                    # all_groups = [r.json() for r in group_results if not isinstance(r, Exception) and r.status_code == 200]
+
+                    # combined_data = {
+                    #     'switches': switches,
+                    #     'links': links,
+                    #     'flows': all_flows,
+                    #     'groups': all_groups  
+                    # }
+
+                    # 2. Ambil Group Stats (Satu-satunya yang kepake buat Load Balancer & Persentase)
+                    group_tasks = []
+                    
                     for sw in switches:
-                        dpid_hex = sw['dpid']
-                        dpid_int = int(dpid_hex, 16)
-                        
-                        # 2. Ambil Flow Stats (Untuk deteksi Host/Garis)
-                        f_res = await loop.run_in_executor(None, lambda: requests.get(f"http://{RYU_IP}:8080/stats/flow/{dpid_int}", timeout=2))
-                        if f_res.status_code == 200:
-                            all_flows.append(f_res.json())
+                        dpid = int(sw['dpid'], 16)
+                        group_tasks.append(loop.run_in_executor(None, lambda d=dpid: requests.get(f"http://{RYU_IP}:8080/stats/group/{d}", timeout=5)))
 
-                        # 3. 🔥 TAMBAHAN: Ambil Group Stats (Untuk Isi Tabel Load Balancer)
-                        # Ini yang akan mengambil data packet_count dan byte_count per Bucket
-                        g_res = await loop.run_in_executor(None, lambda: requests.get(f"http://{RYU_IP}:8080/stats/group/{dpid_int}", timeout=2))
-                        if g_res.status_code == 200:
-                            all_groups.append(g_res.json())
+                    # Eksekusi serentak!
+                    group_results = await asyncio.gather(*group_tasks, return_exceptions=True)
 
-                    # 4. Gabungkan semua data untuk dikirim ke Frontend
+                    # Bersihkan hasil
+                    all_groups = [r.json() for r in group_results if not isinstance(r, Exception) and r.status_code == 200]
+
                     combined_data = {
                         'switches': switches,
                         'links': links,
-                        'flows': all_flows,
-                        'groups': all_groups  # Data ini yang akan dibaca oleh fungsi updateLBTable di JS
+                        'groups': all_groups  
                     }
                     
                     await self.send(text_data=json.dumps({
@@ -60,7 +77,6 @@ class TopologyConsumer(AsyncWebsocketConsumer):
                     }))
                     
             except Exception as e:
-                print(f"Error Update Data Ryu: {e}")
+                print(f"Error Koneksi Lokal ke Azure: {e}")
             
-            # Anda bisa mempercepat sleep menjadi 2 atau 3 agar tabel terasa lebih real-time
             await asyncio.sleep(3)
