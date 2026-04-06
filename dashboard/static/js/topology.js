@@ -14,12 +14,11 @@ const simulation = d3.forceSimulation()
     .force("center", d3.forceCenter(width / 2, height / 2))
     .velocityDecay(0.6); 
 
-// 3. Fungsi Menggambar (Hanya saat struktur berubah)
+// 3. Fungsi Menggambar 
 function drawTopology(data) {
     if (!data || !data.nodes) return;
     svg.selectAll("*").remove();
 
-    // Grouping agar rapi
     const linkGroup = svg.append("g").attr("class", "links-layer");
     const nodeGroup = svg.append("g").attr("class", "nodes-layer");
 
@@ -43,8 +42,36 @@ function drawTopology(data) {
         .data(data.nodes)
         .enter().append("circle")
         .attr("r", d => (d.type === "switch" ? 22 : 16))
-        .attr("fill", d => (d.type === "switch" ? "#38bdf8" : "#22c55e"))
+        
+        // WARNA: Host = Hijau, Switch Mati = Merah, Switch Hidup = Biru
+        .attr("fill", d => {
+            if (d.type === "host") return "#22c55e"; 
+            return d.status === "DOWN" ? "#ef4444" : "#38bdf8"; 
+        })
         .attr("stroke", "#fff").attr("stroke-width", 2)
+        .style("cursor", d => d.type === "switch" ? "pointer" : "default") 
+        
+        // FITUR KLIK
+        .on("click", function(event, d) {
+            if (event.defaultPrevented) return; // Abaikan drag
+
+            if (d.type === "switch") {
+                const isCurrentlyDown = d.status === "DOWN";
+                const targetState = isCurrentlyDown ? "up" : "down";
+                const actionText = isCurrentlyDown ? "MENGHIDUPKAN" : "MEMATIKAN";
+                
+                const confirmAction = confirm(`Apakah Anda yakin ingin ${actionText} ${d.id.toUpperCase()} di Mininet?`);
+                
+                if (confirmAction) {
+                    socket.send(JSON.stringify({
+                        'type': 'toggle_switch',
+                        'action': 'toggle_switch',
+                        'dpid': d.id,          
+                        'target_state': targetState 
+                    }));
+                }
+            }
+        })
         .call(d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended));
 
     // D. Node Labels
@@ -53,7 +80,7 @@ function drawTopology(data) {
         .enter().append("text")
         .text(d => d.id).attr("dx", 28).attr("dy", 5);
 
-    // E. TICK SIMULATION (Update Posisi)
+    // E. TICK SIMULATION 
     simulation.nodes(data.nodes).on("tick", () => {
         link.attr("x1", d => d.source.x).attr("y1", d => d.source.y)
             .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
@@ -72,7 +99,7 @@ function drawTopology(data) {
     simulation.alpha(1).restart();
 }
 
-// 4. Update Visual (Hanya update atribut, BUKAN koordinat)
+// 4. Update Visual Tanpa Geser Koordinat
 function updateTopologyVisuals() {
     if (!lastDataSnapshot) return;
 
@@ -85,44 +112,66 @@ function updateTopologyVisuals() {
     svg.selectAll(".link-labels text")
         .data(lastDataSnapshot.links)
         .text(d => d.label || (d.usage > 0 ? d.usage + "%" : ""));
+
+    // UPDATE WARNA REAL-TIME
+    svg.selectAll(".nodes-layer circle")
+        .data(lastDataSnapshot.nodes)
+        .attr("fill", d => {
+            if (d.type === "host") return "#22c55e"; 
+            return d.status === "DOWN" ? "#ef4444" : "#38bdf8"; 
+        });
 }
 
-// 6. Parsing Data Ryu (Tetap sama)
+// 6. Parsing Data Ryu
 function formatRyuData(ryuJson) {
+    // 🔥 SATPAM: Cek kalau Mininet mati total / Ryu putus
+    if (!ryuJson.switches || ryuJson.switches.length === 0) {
+        return { nodes: [], links: [] }; 
+    }
+    
     let nodes = [];
     let groupMap = {};
+
+    const staticSwitches = ["s1", "s2", "s3", "s4"];
+    
+    // Cek Switch yang aktif dikirim Ryu
+    let activeSwitches = [];
+    if (ryuJson.switches) {
+        activeSwitches = ryuJson.switches.map(sw => "s" + parseInt(sw.dpid, 16));
+    }
+
+    // MASUKKIN SWITCH (Biar posisi utuh)
+    staticSwitches.forEach(sw_id => {
+        if (activeSwitches.includes(sw_id)) {
+            nodes.push({ id: sw_id, type: "switch", status: "UP" });
+        } else {
+            nodes.push({ id: sw_id, type: "switch", status: "DOWN" });
+        }
+    });    
+
     if (ryuJson.groups) {
         ryuJson.groups.forEach(g => {
             const dpid = Object.keys(g)[0];
             groupMap[parseInt(dpid, 16)] = g[dpid][0];
         });
     }
-    if (ryuJson.switches) {
-        ryuJson.switches.forEach(sw => nodes.push({ id: "s" + parseInt(sw.dpid, 16), type: "switch" }));
-    }
 
-    let uniqueLinks = {};
-    if (ryuJson.links) {
-        ryuJson.links.forEach(l => {
-            const s = parseInt(l.src.dpid, 16), d = parseInt(l.dst.dpid, 16);
-            const linkKey = `s${Math.min(s,d)}-s${Math.max(s,d)}`;
-            if (!uniqueLinks[linkKey]) {
-                uniqueLinks[linkKey] = { source: `s${Math.min(s,d)}`, target: `s${Math.max(s,d)}`, usage: 0, status: l.status || "UP", label: "" };
-            }
-        });
-    }
-
-    // --- GANTI MULAI DARI SINI ---
+    // 🔥 LOGIKA BARU: Gambar semua kabel secara paten agar topologi utuh 🔥
+    let uniqueLinks = {
+        "s1-s2": { source: "s1", target: "s2", usage: 0, status: "UP", label: "" },
+        "s1-s3": { source: "s1", target: "s3", usage: 0, status: "UP", label: "" },
+        "s2-s4": { source: "s2", target: "s4", usage: 0, status: "UP", label: "" },
+        "s3-s4": { source: "s3", target: "s4", usage: 0, status: "UP", label: "" }
+    };
     let links = Object.values(uniqueLinks);
 
-    // 1. Cari switch pengirim UTAMA (Yang Total Datanya Paling Gede)
+    // Cari switch pengirim UTAMA
     let activeSenderDpid = null;
     let maxByteCount = 0;
     let activeGroup = null;
 
     Object.keys(groupMap).forEach(dpid => {
         const g = groupMap[dpid];
-        // Pengirim utama pasti punya byte_count (Gigabyte) jauh lebih besar dari penerima (yang cuma ngirim ACK/Megabyte)
         if (g && g.byte_count > maxByteCount) {
             maxByteCount = g.byte_count;
             activeSenderDpid = dpid;
@@ -130,7 +179,7 @@ function formatRyuData(ryuJson) {
         }
     });
 
-    // 2. Terapkan persentase HANYA dari pengirim utama ke SELURUH JALUR
+    // Terapkan persentase load balancing
     if (activeSenderDpid && activeGroup && maxByteCount > 0) {
         let b0 = ((activeGroup.bucket_stats[0].byte_count / activeGroup.byte_count) * 100).toFixed(2) + "%";
         let b1 = ((activeGroup.bucket_stats[1].byte_count / activeGroup.byte_count) * 100).toFixed(2) + "%";
@@ -176,10 +225,7 @@ function formatRyuData(ryuJson) {
             if(l2_2) { l2_2.usage = 1; l2_2.label = b1; }
         }
     }
-    // --- SAMPAI SINI ---
 
-    // --- GANTI BAGIAN STATIC HOSTS INI SAJA ---
-    // Di topologi Diamond lu, H1, H2, H3, H4 SEMUANYA nyolok di Port nomor 3 pada masing-masing Switch.
     const staticHosts = [
         {id: "h1", sw: "s1", port: 3}, 
         {id: "h4", sw: "s2", port: 3}, 
@@ -187,46 +233,68 @@ function formatRyuData(ryuJson) {
         {id: "h2", sw: "s4", port: 3}
     ];
 
+    // 🔥 LOGIKA BARU: Host lenyap jika kabel putus atau switch mati 🔥
     staticHosts.forEach(h => {
-        let isHostUp = true; // Anggap host nyala dulu
-        const dpid = h.sw.replace('s', ''); // Ubah "s1" jadi "1"
+        let isHostUp = true; 
+        const targetSwitch = nodes.find(n => n.id === h.sw);
 
-        // Cek status fisik Port 3 dari data PortDesc yang dikirim Python
-        if (ryuJson.portdescs) {
-            const swPortDesc = ryuJson.portdescs.find(pd => Object.keys(pd)[0] == dpid);
-            if (swPortDesc) {
-                const ports = swPortDesc[dpid];
-                const hostPort = ports.find(p => p.port_no == h.port);
-                
-                if (hostPort) {
-                    // Di OpenFlow: state 1 = LINK DOWN (Kabel Putus), config 1 = PORT DOWN.
-                    // Kalau dapet angka 1 di sini, fix berarti kabel host-nya mati!
-                    if (hostPort.state === 1 || hostPort.config === 1) {
-                        isHostUp = false; 
+        // Kalau switchnya mati (merah), otomatis hostnya kita hilangkan
+        if (!targetSwitch || targetSwitch.status === "DOWN") {
+            isHostUp = false;
+        } else {
+            const dpid = h.sw.replace('s', ''); 
+            // Cek status fisik port (contoh: port 3) dari data Ryu
+            if (ryuJson.portdescs) {
+                const swPortDesc = ryuJson.portdescs.find(pd => Object.keys(pd)[0] == dpid);
+                if (swPortDesc) {
+                    const ports = swPortDesc[dpid];
+                    const hostPort = ports.find(p => p.port_no == h.port);
+                    
+                    if (hostPort) {
+                        // Di OpenFlow: state 1 = LINK DOWN (Kabel Putus)
+                        if (hostPort.state === 1 || hostPort.config === 1) {
+                            isHostUp = false; 
+                        }
                     }
                 }
             }
         }
-        
-        // Kalau isHostUp lolos (masih true), baru kita izinin digambar ke layar
-        if (isHostUp && nodes.find(n => n.id === h.sw)) {
+
+        // Hanya gambar host kalau kabelnya benar-benar nyambung
+        if (isHostUp) {
             nodes.push({ id: h.id, type: "host" });
             links.push({ source: h.id, target: h.sw, usage: 0, status: "UP", label: "" });
+        }
+    });
+    
+    // 🔥 FILTER AKHIR: Jika ujung kabel nyambung ke Switch yang mati, paksa aliran diam (Abu-abu) 🔥
+    links.forEach(l => {
+        // Ekstrak ID dalam wujud string murni
+        let srcStr = typeof l.source === 'object' ? l.source.id : l.source;
+        let dstStr = typeof l.target === 'object' ? l.target.id : l.target;
+
+        // Cari node-nya di array
+        let srcNode = nodes.find(n => n.id === srcStr);
+        let dstNode = nodes.find(n => n.id === dstStr);
+
+        // Kalau salah satu ujungnya mati, hentikan aliran
+        if ((srcNode && srcNode.status === "DOWN") || (dstNode && dstNode.status === "DOWN")) {
+            l.usage = 0;
+            l.label = "";
+            l.status = "UP"; // UP = Abu-abu (Idle). Kalau DOWN = Merah putus. 
         }
     });
 
     return { nodes, links };
 }
-// --- SAMPAI SINI ---
 
-// 9. WebSocket (SINKRONISASI KETAT)
+// 9. WebSocket
 const socket = new WebSocket('ws://' + window.location.host + '/ws/topology/');
 socket.onmessage = function(event) {
     const incoming = JSON.parse(event.data);
     if (incoming.type === 'topology_update') {
         const newData = formatRyuData(incoming.data);
         
-        // --- TAMBAHKAN LOGIKA UI DI SINI ---
         const errorOverlay = document.getElementById("error-overlay");
         const svgElement = document.getElementById("topo-svg");
 
@@ -234,19 +302,16 @@ socket.onmessage = function(event) {
             svgElement.style.opacity = "0.1";
             errorOverlay.style.display = "block";
             document.getElementById("error-text").innerText = "Data Kosong atau Ryu Controller Mati";
-            return; // Hentikan proses jika tidak ada data
+            return; 
         } else {
             errorOverlay.style.display = "none";
             svgElement.style.opacity = "1";
         }
-        // --- BATAS PENAMBAHAN ---
 
-        // 🔥 PERUBAHAN UTAMA: Cek juga apakah jumlah LINKS (Garis) berubah! 🔥
         if (!lastDataSnapshot || 
             lastDataSnapshot.nodes.length !== newData.nodes.length || 
             lastDataSnapshot.links.length !== newData.links.length) { 
 
-            // Trik Pro: Simpan koordinat lama biar buletan switch gak mental pas garis dihapus
             if (lastDataSnapshot) {
                 newData.nodes.forEach(newNode => {
                     const oldNode = lastDataSnapshot.nodes.find(n => n.id === newNode.id);
@@ -262,7 +327,11 @@ socket.onmessage = function(event) {
             lastDataSnapshot = newData;
             drawTopology(newData);
         } else {
-            // FIX: Jangan replace object. Cukup update properti visualnya saja!
+            newData.nodes.forEach(newNode => {
+                const oldNode = lastDataSnapshot.nodes.find(on => on.id === newNode.id);
+                if(oldNode) { oldNode.status = newNode.status; }
+            });
+
             newData.links.forEach(newLink => {
                 const oldLink = lastDataSnapshot.links.find(ol => 
                     (typeof ol.source === 'object' ? ol.source.id : ol.source) === newLink.source &&
@@ -276,7 +345,6 @@ socket.onmessage = function(event) {
                 }
             });
 
-            // Panggil update visual
             updateTopologyVisuals();
         }
         
@@ -284,7 +352,7 @@ socket.onmessage = function(event) {
     }
 };
 
-// 10. Drag & Table Helpers (Standard)
+// 10. Drag & Table Helpers 
 function dragstarted(event, d) { if (!event.active) simulation.alphaTarget(0.1).restart(); d.fx = d.x; d.fy = d.y; }
 function dragged(event, d) { d.fx = event.x; d.fy = event.y; }
 function dragended(event, d) { if (!event.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }

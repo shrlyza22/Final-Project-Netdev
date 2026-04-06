@@ -1,6 +1,7 @@
 import json
 import asyncio
 import requests
+import paramiko # untuk edit tombol iteraktif di switch
 from channels.generic.websocket import AsyncWebsocketConsumer
 
 class TopologyConsumer(AsyncWebsocketConsumer):
@@ -13,8 +14,8 @@ class TopologyConsumer(AsyncWebsocketConsumer):
         self.keep_running = False
 
     async def send_stats_loop(self):
-        # RYU_IP = "netdev1.eastasia.cloudapp.azure.com" # Untuk dari local laptop narik data ke Azure
-        RYU_IP = "localhost" # Untuk dari Azure langsung
+        RYU_IP = "netdev1.eastasia.cloudapp.azure.com" # Untuk dari local laptop narik data ke Azure
+        # RYU_IP = "localhost" # Untuk dari Azure langsung
         
         while self.keep_running:
             try:
@@ -79,3 +80,53 @@ class TopologyConsumer(AsyncWebsocketConsumer):
                     print(f"Error kirim pesan error ke Web: {ws_e}")
             
             await asyncio.sleep(3)
+
+    # 1. Fungsi untuk menerima pesan klik dari topology.js
+    async def receive(self, text_data):
+        data = json.loads(text_data)
+
+        if data.get('action') == 'toggle_switch':
+            target_switch = data['dpid'] # contoh dapet 's1'
+            target_state = data['target_state'] # dapet 'down' atau 'up'
+
+            print(f"Menerima perintah: {target_state} untuk {target_switch}")
+
+            # Eksekusi SSH di background agar tidak bikin WebSocket ngelag
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, lambda: self.execute_mininet_command(target_switch, target_state))
+
+    # 2. Fungsi untuk Remote SSH ke VM2 pakai file .pem
+    def execute_mininet_command(self, switch_id, state):
+        try:
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+            # Pastikan IP dan path kunci lu bener
+            VM2_IP = "netdev2.eastasia.cloudapp.azure.com"  
+            VM2_USER = "netdev2" 
+            PEM_FILE = r"C:\Users\Hp\Downloads\Netdev-key.pem" 
+
+            print(f"Mencoba SSH ke {VM2_IP}...")
+            ssh.connect(hostname=VM2_IP, username=VM2_USER, key_filename=PEM_FILE, timeout=5.0)
+
+            # --- JURUS PAMUNGKAS OVS ---
+            if state == "down":
+                # Tendang switch dari controller & hapus semua sisa paketnya
+                command = f"sudo ovs-vsctl del-controller {switch_id} && sudo ovs-ofctl -O OpenFlow13 del-flows {switch_id}"
+            else:
+                # Contek IP Ryu dari switch yang masih nyala (pakai Regex), lalu sambungin ulang!
+                command = f"CTRL=$(sudo ovs-vsctl show | grep -o 'tcp:[0-9\\.]*:[0-9]*' | head -n 1) && sudo ovs-vsctl set-controller {switch_id} $CTRL"
+
+            # Eksekusi command di VM2
+            stdin, stdout, stderr = ssh.exec_command(command)
+
+            err_msg = stderr.read().decode().strip()
+            if err_msg:
+                print(f"Peringatan dari OVS VM2: {err_msg}")
+            else:
+                print(f"Sukses eksekusi di VM2. Switch {switch_id} berhasil di-{state.upper()}!")
+                
+            ssh.close()
+
+        except Exception as e:
+            print(f"GAGAL SSH ke VM2: Cek IP, path file .pem, atau koneksi. Detail Error: {e}")
