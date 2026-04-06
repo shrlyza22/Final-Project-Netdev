@@ -1,4 +1,4 @@
-// 1. Variabel Global
+// 1. Variabel Global & State Proteksi
 let selectedSwitchId = "1";
 const topoContainer = document.getElementById("topo-container");
 const svg = d3.select("#topo-svg");
@@ -7,7 +7,12 @@ let width = topoContainer.clientWidth;
 let height = 500;
 let lastDataSnapshot = null;
 
-// 2. Setup Simulasi (velocityDecay tinggi biar anteng)
+// 🔥 VARIABEL BARU UNTUK SAFETY LOCK (ANTI-BOCOR) 🔥
+window.protectedSwitches = [];
+window.lastGroupBytes = {};
+window.lockTimers = {}; // Nyimpen waktu terakhir trafik ngalir
+
+// 2. Setup Simulasi 
 const simulation = d3.forceSimulation()
     .force("link", d3.forceLink().id(d => d.id).distance(150))
     .force("charge", d3.forceManyBody().strength(-700))
@@ -43,7 +48,6 @@ function drawTopology(data) {
         .enter().append("circle")
         .attr("r", d => (d.type === "switch" ? 22 : 16))
         
-        // WARNA: Host = Hijau, Switch Mati = Merah, Switch Hidup = Biru
         .attr("fill", d => {
             if (d.type === "host") return "#22c55e"; 
             return d.status === "DOWN" ? "#ef4444" : "#38bdf8"; 
@@ -51,15 +55,21 @@ function drawTopology(data) {
         .attr("stroke", "#fff").attr("stroke-width", 2)
         .style("cursor", d => d.type === "switch" ? "pointer" : "default") 
         
-        // FITUR KLIK
+        // FITUR KLIK & PROTEKSI
         .on("click", function(event, d) {
-            if (event.defaultPrevented) return; // Abaikan drag
+            if (event.defaultPrevented) return; 
 
             if (d.type === "switch") {
                 const isCurrentlyDown = d.status === "DOWN";
                 const targetState = isCurrentlyDown ? "up" : "down";
                 const actionText = isCurrentlyDown ? "MENGHIDUPKAN" : "MEMATIKAN";
                 
+                // 🔥 LOGIKA SAFETY LOCK 🔥
+                if (targetState === "down" && window.protectedSwitches.includes(d.id)) {
+                    alert(`🚨 AKSES DITOLAK!\n\nSwitch ${d.id.toUpperCase()} tidak bisa dimatikan karena sedang sibuk menjadi PENGIRIM atau PENERIMA data (Trafik Iperf sedang berjalan).\nTunggu hingga aliran data selesai!`);
+                    return; 
+                }
+
                 const confirmAction = confirm(`Apakah Anda yakin ingin ${actionText} ${d.id.toUpperCase()} di Mininet?`);
                 
                 if (confirmAction) {
@@ -113,7 +123,6 @@ function updateTopologyVisuals() {
         .data(lastDataSnapshot.links)
         .text(d => d.label || (d.usage > 0 ? d.usage + "%" : ""));
 
-    // UPDATE WARNA REAL-TIME
     svg.selectAll(".nodes-layer circle")
         .data(lastDataSnapshot.nodes)
         .attr("fill", d => {
@@ -124,23 +133,19 @@ function updateTopologyVisuals() {
 
 // 6. Parsing Data Ryu
 function formatRyuData(ryuJson) {
-    // 🔥 SATPAM: Cek kalau Mininet mati total / Ryu putus
     if (!ryuJson.switches || ryuJson.switches.length === 0) {
         return { nodes: [], links: [] }; 
     }
     
     let nodes = [];
     let groupMap = {};
-
     const staticSwitches = ["s1", "s2", "s3", "s4"];
     
-    // Cek Switch yang aktif dikirim Ryu
     let activeSwitches = [];
     if (ryuJson.switches) {
         activeSwitches = ryuJson.switches.map(sw => "s" + parseInt(sw.dpid, 16));
     }
 
-    // MASUKKIN SWITCH (Biar posisi utuh)
     staticSwitches.forEach(sw_id => {
         if (activeSwitches.includes(sw_id)) {
             nodes.push({ id: sw_id, type: "switch", status: "UP" });
@@ -156,7 +161,6 @@ function formatRyuData(ryuJson) {
         });
     }
 
-    // 🔥 LOGIKA BARU: Gambar semua kabel secara paten agar topologi utuh 🔥
     let uniqueLinks = {
         "s1-s2": { source: "s1", target: "s2", usage: 0, status: "UP", label: "" },
         "s1-s3": { source: "s1", target: "s3", usage: 0, status: "UP", label: "" },
@@ -165,7 +169,6 @@ function formatRyuData(ryuJson) {
     };
     let links = Object.values(uniqueLinks);
 
-    // Cari switch pengirim UTAMA
     let activeSenderDpid = null;
     let maxByteCount = 0;
     let activeGroup = null;
@@ -179,8 +182,30 @@ function formatRyuData(ryuJson) {
         }
     });
 
-    // Terapkan persentase load balancing
+    // 🔥 LOGIKA PROTEKSI IPERF TAHAP 2 (COOLDOWN TIMER) 🔥
+    window.protectedSwitches = []; 
+
     if (activeSenderDpid && activeGroup && maxByteCount > 0) {
+        
+        let currentBytes = activeGroup.byte_count;
+        let lastBytes = window.lastGroupBytes[activeSenderDpid] || 0;
+
+        // Kalau byte bertambah, reset timer ke waktu sekarang!
+        if (currentBytes > lastBytes) {
+            window.lockTimers[activeSenderDpid] = Date.now();
+        }
+        window.lastGroupBytes[activeSenderDpid] = currentBytes;
+
+        // Gembok aktif jika data terakhir ngalir kurang dari 5 detik yang lalu
+        let isFlowingNow = window.lockTimers[activeSenderDpid] && (Date.now() - window.lockTimers[activeSenderDpid] < 5000);
+
+        if (isFlowingNow) {
+            if (activeSenderDpid == "1") window.protectedSwitches = ["s1", "s4"];
+            else if (activeSenderDpid == "3") window.protectedSwitches = ["s3", "s2"];
+            else if (activeSenderDpid == "4") window.protectedSwitches = ["s4", "s1"];
+            else if (activeSenderDpid == "2") window.protectedSwitches = ["s2", "s3"];
+        }
+
         let b0 = ((activeGroup.bucket_stats[0].byte_count / activeGroup.byte_count) * 100).toFixed(2) + "%";
         let b1 = ((activeGroup.bucket_stats[1].byte_count / activeGroup.byte_count) * 100).toFixed(2) + "%";
 
@@ -233,25 +258,20 @@ function formatRyuData(ryuJson) {
         {id: "h2", sw: "s4", port: 3}
     ];
 
-    // 🔥 LOGIKA BARU: Host lenyap jika kabel putus atau switch mati 🔥
     staticHosts.forEach(h => {
         let isHostUp = true; 
         const targetSwitch = nodes.find(n => n.id === h.sw);
 
-        // Kalau switchnya mati (merah), otomatis hostnya kita hilangkan
         if (!targetSwitch || targetSwitch.status === "DOWN") {
             isHostUp = false;
         } else {
             const dpid = h.sw.replace('s', ''); 
-            // Cek status fisik port (contoh: port 3) dari data Ryu
             if (ryuJson.portdescs) {
                 const swPortDesc = ryuJson.portdescs.find(pd => Object.keys(pd)[0] == dpid);
                 if (swPortDesc) {
                     const ports = swPortDesc[dpid];
                     const hostPort = ports.find(p => p.port_no == h.port);
-                    
                     if (hostPort) {
-                        // Di OpenFlow: state 1 = LINK DOWN (Kabel Putus)
                         if (hostPort.state === 1 || hostPort.config === 1) {
                             isHostUp = false; 
                         }
@@ -260,28 +280,23 @@ function formatRyuData(ryuJson) {
             }
         }
 
-        // Hanya gambar host kalau kabelnya benar-benar nyambung
         if (isHostUp) {
             nodes.push({ id: h.id, type: "host" });
             links.push({ source: h.id, target: h.sw, usage: 0, status: "UP", label: "" });
         }
     });
-    
-    // 🔥 FILTER AKHIR: Jika ujung kabel nyambung ke Switch yang mati, paksa aliran diam (Abu-abu) 🔥
+
     links.forEach(l => {
-        // Ekstrak ID dalam wujud string murni
         let srcStr = typeof l.source === 'object' ? l.source.id : l.source;
         let dstStr = typeof l.target === 'object' ? l.target.id : l.target;
 
-        // Cari node-nya di array
         let srcNode = nodes.find(n => n.id === srcStr);
         let dstNode = nodes.find(n => n.id === dstStr);
 
-        // Kalau salah satu ujungnya mati, hentikan aliran
         if ((srcNode && srcNode.status === "DOWN") || (dstNode && dstNode.status === "DOWN")) {
             l.usage = 0;
             l.label = "";
-            l.status = "UP"; // UP = Abu-abu (Idle). Kalau DOWN = Merah putus. 
+            l.status = "UP"; 
         }
     });
 
