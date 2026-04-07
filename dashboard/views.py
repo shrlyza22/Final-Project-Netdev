@@ -1,6 +1,6 @@
 from django.shortcuts import render
-from django.http import JsonResponse
-import requests  # Jangan lupa import requests
+# from django.http import JsonResponse 
+# import requests  # Jangan lupa import requests
 
 def index(request):
     # 1. Definisikan Base URL Grafana (biar kalau ganti IP cuma ubah 1 tempat)

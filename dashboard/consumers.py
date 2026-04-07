@@ -66,7 +66,6 @@ class TopologyConsumer(AsyncWebsocketConsumer):
                 empty_data = {
                     'switches': [],
                     'links': [],
-                    'flows': [],
                     'groups': []
                 }
                 
