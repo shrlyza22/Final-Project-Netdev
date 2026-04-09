@@ -114,12 +114,11 @@ Dashboard menyediakan:
 
 * Visualisasi topologi jaringan
 * Monitoring performa:
-
-  a. Throughput
-  b. Latency
-  c. CPU Usage
-  d. Packet Loss
-  e. Memory Usage
+  * Throughput
+  * Latency
+  * CPU Usage
+  * Packet Loss
+  * Memory Usage
 * Kontrol jaringan secara real-time
 
 Hasil pengujian menunjukkan:
