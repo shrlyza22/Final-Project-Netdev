@@ -1,0 +1,8 @@
+modules:
+  default:
+    metrics:
+      - name: ryu_switches_connected
+        path: "$[*]"  
+        help: "Jumlah switch yang terdeteksi oleh Ryu Controller"
+        values:
+          count: 1

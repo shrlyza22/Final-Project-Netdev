@@ -1,0 +1,18 @@
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: netdev_prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    # Agar Prometheus bisa ke localhost (VM-1)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  ryu-exporter:
+    build: .
+    container_name: ryu_penerjemah_lokal
+    network_mode: "host"
+    restart: always

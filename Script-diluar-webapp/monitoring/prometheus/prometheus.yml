@@ -1,0 +1,19 @@
+global:
+  scrape_interval: 15s  # Cooldown Prometheus narik data
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Monitoring Prometheus itu sendiri
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Monitoring VM-2 (Host Mininet)
+  - job_name: 'mininet-exporter'
+    static_configs:
+      - targets: ['10.10.10.5:8000']
+
+  # Monitoring Ryu via Python Custom Exporter
+  - job_name: 'ryu-controller'
+    static_configs:
+      - targets: ['host.docker.internal:7979']
