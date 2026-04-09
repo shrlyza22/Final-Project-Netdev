@@ -7,7 +7,6 @@ let width = topoContainer.clientWidth;
 let height = 500;
 let lastDataSnapshot = null;
 
-// 🔥 VARIABEL BARU UNTUK SAFETY LOCK (ANTI-BOCOR) 🔥
 window.protectedSwitches = [];
 window.lastGroupBytes = {};
 window.lockTimers = {}; // Nyimpen waktu terakhir trafik ngalir
@@ -64,7 +63,6 @@ function drawTopology(data) {
                 const targetState = isCurrentlyDown ? "up" : "down";
                 const actionText = isCurrentlyDown ? "MENGHIDUPKAN" : "MEMATIKAN";
                 
-                // 🔥 LOGIKA SAFETY LOCK 🔥
                 if (targetState === "down" && window.protectedSwitches.includes(d.id)) {
                     alert(`🚨 AKSES DITOLAK!\n\nSwitch ${d.id.toUpperCase()} tidak bisa dimatikan karena sedang sibuk menjadi PENGIRIM atau PENERIMA data (Trafik Iperf sedang berjalan).\nTunggu hingga aliran data selesai!`);
                     return; 
@@ -182,7 +180,6 @@ function formatRyuData(ryuJson) {
         }
     });
 
-    // 🔥 LOGIKA PROTEKSI IPERF TAHAP 2 (COOLDOWN TIMER) 🔥
     window.protectedSwitches = []; 
 
     if (activeSenderDpid && activeGroup && maxByteCount > 0) {
@@ -190,13 +187,11 @@ function formatRyuData(ryuJson) {
         let currentBytes = activeGroup.byte_count;
         let lastBytes = window.lastGroupBytes[activeSenderDpid] || 0;
 
-        // Kalau byte bertambah, reset timer ke waktu sekarang!
         if (currentBytes > lastBytes) {
             window.lockTimers[activeSenderDpid] = Date.now();
         }
         window.lastGroupBytes[activeSenderDpid] = currentBytes;
 
-        // Gembok aktif jika data terakhir ngalir kurang dari 5 detik yang lalu
         let isFlowingNow = window.lockTimers[activeSenderDpid] && (Date.now() - window.lockTimers[activeSenderDpid] < 5000);
 
         if (isFlowingNow) {
@@ -363,7 +358,6 @@ socket.onmessage = function(event) {
             updateTopologyVisuals();
         }
         
-        // --- UPDATE REAL-TIME SUMMARY DISINI ---
         updateSummary(newData.nodes);
         
         if(incoming.data.groups) updateLBTable(incoming.data.groups);
@@ -380,14 +374,14 @@ function updateLBTable(groupsData) {
     groupsData.forEach(g => { const dpid = Object.keys(g)[0]; if (parseInt(dpid, 16) === parseInt(selectedSwitchId)) active = g[dpid][0]; });
     if (!active) return;
     const b0 = active.bucket_stats[0], b1 = active.bucket_stats[1], total = active.byte_count;
-    tableBody.innerHTML = `<tr><td>Packet</td><td>${b0.packet_count}</td><td>${b1.packet_count}</td><td>${active.packet_count}</td></tr><tr><td>Byte</td><td>${(b0.byte_count/1e9).toFixed(2)} GB</td><td>${(b1.byte_count/1e9).toFixed(2)} GB</td><td>${(total/1e9).toFixed(2)} GB</td></tr><tr><td>%</td><td>${total>0?((b0.byte_count/total)*100).toFixed(2):0}%</td><td>${total>0?((b1.byte_count/total)*100).toFixed(2):0}%</td><td>100%</td></tr>`;
+    tableBody.innerHTML = `<tr><td>Packet Count</td><td>${b0.packet_count}</td><td>${b1.packet_count}</td><td>${active.packet_count}</td></tr><tr><td>Byte Count</td><td>${(b0.byte_count/1e9).toFixed(2)} GB</td><td>${(b1.byte_count/1e9).toFixed(2)} GB</td><td>${(total/1e9).toFixed(2)} GB</td></tr><tr><td>Persentase (%)</td><td>${total>0?((b0.byte_count/total)*100).toFixed(2):0}%</td><td>${total>0?((b1.byte_count/total)*100).toFixed(2):0}%</td><td>100%</td></tr>`;
 }
 function changeActiveSwitch(swNum) { selectedSwitchId = swNum.toString(); document.querySelectorAll('.sw-btn').forEach(btn => btn.classList.remove('active')); document.getElementById(`btn-s${swNum}`).classList.add('active'); }
 function updateSummary(nodes) {
     // 1. Hitung Switch yang UP
     const activeSwitches = nodes.filter(n => n.type === 'switch' && n.status === 'UP').length;
     
-    // 2. Hitung Host (Host yang ditarik formatRyuData otomatis hanya yang UP)
+    // 2. Hitung Host
     const activeHosts = nodes.filter(n => n.type === 'host').length;
     
     // 3. Update DOM HTML

@@ -3,7 +3,7 @@ from django.shortcuts import render
 # import requests  # Jangan lupa import requests
 
 def index(request):
-    # 1. Definisikan Base URL Grafana (biar kalau ganti IP cuma ubah 1 tempat)
+    # 1. Definisikan Base URL Grafana
     base_url = "http://netdev1.eastasia.cloudapp.azure.com:3000/d-solo/adqkgrv/new-dashboard?orgId=1"
     
     # 2. Daftar Panel Monitoring untuk dikirim ke HTML

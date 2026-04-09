@@ -1,7 +1,7 @@
 import json
 import asyncio
 import requests
-import paramiko # untuk edit tombol iteraktif di switch
+import paramiko
 from channels.generic.websocket import AsyncWebsocketConsumer
 
 class TopologyConsumer(AsyncWebsocketConsumer):
@@ -14,14 +14,14 @@ class TopologyConsumer(AsyncWebsocketConsumer):
         self.keep_running = False
 
     async def send_stats_loop(self):
-        RYU_IP = "netdev1.eastasia.cloudapp.azure.com" # Untuk dari local laptop narik data ke Azure
-        # RYU_IP = "localhost" # Untuk dari Azure langsung
+        # RYU_IP = "netdev1.eastasia.cloudapp.azure.com" # Untuk dari local laptop narik data ke Azure
+        RYU_IP = "10.10.10.4" # Untuk dari Azure langsung
         
         while self.keep_running:
             try:
                 loop = asyncio.get_event_loop()
                 
-                # 1. Tarik Topologi Dasar (Timeout diperpanjang jadi 5 detik untuk Azure)
+                # 1. Tarik Topologi Dasar
                 sw_res = await loop.run_in_executor(None, lambda: requests.get(f"http://{RYU_IP}:8080/v1.0/topology/switches", timeout=5))
                 ln_res = await loop.run_in_executor(None, lambda: requests.get(f"http://{RYU_IP}:8080/v1.0/topology/links", timeout=5))
                 
@@ -29,20 +29,18 @@ class TopologyConsumer(AsyncWebsocketConsumer):
                     switches = sw_res.json()
                     links = ln_res.json() if ln_res.status_code == 200 else []
 
-                    # 2. Ambil Group Stats (Satu-satunya yang kepake buat Load Balancer & Persentase)
+                    # 2. Ambil Group Stats
                     group_tasks = []
-                    portdesc_tasks = [] # <-- Tambahan buat ngecek kabel Host putus/nyambung
+                    portdesc_tasks = [] 
                     
                     for sw in switches:
                         dpid = int(sw['dpid'], 16)
                         group_tasks.append(loop.run_in_executor(None, lambda d=dpid: requests.get(f"http://{RYU_IP}:8080/stats/group/{d}", timeout=5)))
                         portdesc_tasks.append(loop.run_in_executor(None, lambda d=dpid: requests.get(f"http://{RYU_IP}:8080/stats/portdesc/{d}", timeout=5)))
 
-                    # Eksekusi serentak!
                     group_results = await asyncio.gather(*group_tasks, return_exceptions=True)
                     portdesc_results = await asyncio.gather(*portdesc_tasks, return_exceptions=True)
 
-                    # Bersihkan hasil
                     all_groups = [r.json() for r in group_results if not isinstance(r, Exception) and r.status_code == 200]
                     all_portdescs = [r.json() for r in portdesc_results if not isinstance(r, Exception) and r.status_code == 200]
 
@@ -50,7 +48,7 @@ class TopologyConsumer(AsyncWebsocketConsumer):
                         'switches': switches,
                         'links': links,
                         'groups': all_groups,
-                        'portdescs': all_portdescs # <-- Data kabel dikirim ke Frontend
+                        'portdescs': all_portdescs
                     }
                     
                     await self.send(text_data=json.dumps({
@@ -60,16 +58,12 @@ class TopologyConsumer(AsyncWebsocketConsumer):
                     
             except Exception as e:
                 print(f"Error Koneksi Lokal ke Azure: {e}")
-
-                # 🔥 TAMBAHANNYA DI SINI 🔥
-                # Kasih tau frontend kalau Ryu mati dengan ngirim array kosong
                 empty_data = {
                     'switches': [],
                     'links': [],
                     'groups': []
                 }
                 
-                # Biar aman, pake try-except lagi khusus untuk ngirim pesan error via websocket
                 try:
                     await self.send(text_data=json.dumps({
                         'type': 'topology_update',
@@ -101,19 +95,18 @@ class TopologyConsumer(AsyncWebsocketConsumer):
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
             # Pastikan IP dan path kunci lu bener
-            VM2_IP = "netdev2.eastasia.cloudapp.azure.com"  
+            # VM2_IP = "netdev2.eastasia.cloudapp.azure.com"
+            VM2_IP = "10.10.10.5"  
             VM2_USER = "netdev2" 
-            PEM_FILE = r"C:\Users\Hp\Downloads\Netdev-key.pem" 
+            # PEM_FILE = r"C:\Users\Hp\Downloads\Netdev-key.pem" 
 
             print(f"Mencoba SSH ke {VM2_IP}...")
-            ssh.connect(hostname=VM2_IP, username=VM2_USER, key_filename=PEM_FILE, timeout=5.0)
+            ssh.connect(hostname=VM2_IP, username=VM2_USER, timeout=5.0)
 
-            # --- JURUS PAMUNGKAS OVS ---
             if state == "down":
-                # Tendang switch dari controller & hapus semua sisa paketnya
+                # Hapus sw dari controller
                 command = f"sudo ovs-vsctl del-controller {switch_id} && sudo ovs-ofctl -O OpenFlow13 del-flows {switch_id}"
             else:
-                # Contek IP Ryu dari switch yang masih nyala (pakai Regex), lalu sambungin ulang!
                 command = f"CTRL=$(sudo ovs-vsctl show | grep -o 'tcp:[0-9\\.]*:[0-9]*' | head -n 1) && sudo ovs-vsctl set-controller {switch_id} $CTRL"
 
             # Eksekusi command di VM2
