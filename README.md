@@ -1,179 +1,148 @@
-# 🚀 SDN Load Balancing Dashboard
+# Pengembangan Dashboard Website Monitoring Jaringan Berbasis SDN untuk Visualisasi Topologi dan Load Balancing
 
-Dashboard berbasis web untuk visualisasi topologi jaringan dan manajemen load balancing pada lingkungan Software-Defined Network (SDN).
+## Tujuan dan Sasaran Penelitian
 
-> Dibangun menggunakan Ryu Controller, Mininet, Prometheus, dan Grafana — dikemas dalam antarmuka web untuk monitoring dan kontrol secara real-time.
+Kajian ini bertujuan untuk:
+
+* Memahami arsitektur Software-Defined Networking (SDN) dalam memisahkan control plane dan data plane.
+* Mengimplementasikan mekanisme load balancing berbasis Ryu Controller dengan skenario distribusi trafik 70/30 dan 50/50.
+* Mengembangkan sistem monitoring jaringan berbasis web menggunakan Prometheus dan Grafana.
+* Menganalisis performa jaringan berdasarkan metrik seperti throughput, latency, dan packet loss, CPU usage, dan Memory usage.
+* Merancang sistem manajemen jaringan yang terpusat, adaptif, dan scalable.
 
 ---
 
-## ✨ Fitur Utama
+## Gambaran Kajian
 
-* 🔀 **Load Balancing Dinamis**
+Kajian ini mengembangkan sistem jaringan berbasis SDN yang terdiri dari:
 
-  * Mendukung skenario distribusi trafik:
+* Ryu Controller sebagai control plane
+* Mininet sebagai emulator jaringan
+* Open vSwitch (OVS) sebagai data plane
+* Prometheus dan Grafana untuk monitoring
+* Django sebagai web dashboard
 
-    * 70/30 (asimetris)
-    * 50/50 (simetris)
-  * Diimplementasikan menggunakan OpenFlow Group Table (SELECT)
+Sistem ini dirancang untuk mengatasi bottleneck jaringan melalui load balancing serta meningkatkan visibilitas jaringan menggunakan dashboard berbasis web. 
 
-* 🌐 **Visualisasi Topologi**
+---
 
-  * Topologi diamond interaktif (4 switch, 4 host)
-  * Monitoring status link secara real-time
+## Spesifikasi Jaringan
 
-* 📊 **Monitoring Real-Time**
+Topologi yang digunakan adalah topologi diamond yang terdiri dari:
 
+| Komponen | Jumlah    |
+| -------- | --------- |
+| Switch   | 4 (S1–S4) |
+| Host     | 4 (H1–H4) |
+
+Karakteristik:
+
+* Setiap host terhubung ke satu switch
+* Terdapat jalur redundan antar switch
+* Mendukung multi-path routing untuk load balancing 
+
+---
+
+## Skenario Load Balancing
+
+### Distribusi 70/30
+
+* Digunakan untuk trafik H1 ke H2 dan berlaku sebaliknya
+* 70% melalui jalur pertama
+* 30% melalui jalur kedua
+
+### Distribusi 50/50
+
+* Digunakan untuk trafik H3 ke H4 dan berlaku sebaliknya
+* Trafik dibagi secara merata
+
+Pendekatan yang digunakan:
+
+* OpenFlow Group Table tipe SELECT
+* Flow-based hashing
+
+---
+
+## Lingkungan Pengujian
+
+Sistem dijalankan pada dua lingkungan virtual:
+
+### VM1 (Control Plane dan Monitoring)
+
+* Ryu Controller
+* Prometheus
+* Grafana
+* Web Dashboard (Django)
+
+### VM2 (Data Plane)
+
+* Mininet
+* Open vSwitch
+
+Komunikasi antar komponen menggunakan protokol OpenFlow. 
+
+---
+
+## Komponen dan Teknologi
+
+* Ryu Controller
+* Mininet
+* Open vSwitch (OVS)
+* Prometheus
+* Grafana
+* Docker
+* Django
+
+---
+
+## Implementasi Sistem
+
+Tahapan implementasi:
+
+1. Membangun topologi jaringan pada Mininet
+2. Menghubungkan switch OVS ke Ryu Controller
+3. Mengimplementasikan logika load balancing pada controller
+4. Mengumpulkan metrik menggunakan Prometheus
+5. Menampilkan data melalui Grafana
+6. Mengintegrasikan seluruh komponen ke dalam web dashboard
+
+---
+
+## Monitoring dan Evaluasi
+
+Dashboard menyediakan:
+
+* Visualisasi topologi jaringan
+* Monitoring performa:
   * Throughput
   * Latency
   * CPU Usage
   * Packet Loss
   * Memory Usage
+* Kontrol jaringan secara real-time
 
-* 🧠 **Kontrol Terpusat**
+Hasil pengujian menunjukkan:
 
-  * Mengelola perilaku jaringan melalui SDN controller (Ryu)
-  * Integrasi REST API
-
-* 🔐 **Sistem Safety Lock**
-
-  * Mencegah pemutusan link saat trafik aktif (misalnya saat uji iperf)
+* Konektivitas antar host berhasil (0% packet loss)
+* Load balancing berjalan sesuai probabilitas konfigurasi
+* Sistem monitoring mampu menampilkan data secara real-time 
 
 ---
 
-## 🏗️ Gambaran Arsitektur
+## Pengembangan Selanjutnya
 
-Proyek ini membagi sistem menjadi dua lapisan utama:
-
-### 🔹 Control Plane & Monitoring
-
-* Ryu Controller
-* Prometheus (pengumpulan metrik)
-* Grafana (visualisasi)
-* Web App (Django)
-
-### 🔹 Data Plane
-
-* Mininet (emulasi jaringan)
-* Open vSwitch (OVS)
-
-📌 Sistem menggunakan **topologi diamond**, yang memungkinkan beberapa jalur routing untuk kebutuhan load balancing.
+* Migrasi dari Mininet ke Containernet untuk meningkatkan isolasi sistem dan mendukung simulasi berbasis container yang lebih realistis.
+* Integrasi web-terminal (seperti xterm.js atau Apache Guacamole) ke dalam dashboard untuk memudahkan konfigurasi dan kontrol langsung tanpa SSH terpisah.
+* Peningkatan akurasi load balancing dengan pendekatan packet-level menggunakan teknologi programmable data plane (misalnya P4) atau OpenFlow QoS (meters).
 
 ---
 
-## 🧩 Teknologi yang Digunakan
+## Referensi
 
-| Layer            | Teknologi            |
-| ---------------- | -------------------- |
-| SDN Controller   | Ryu                  |
-| Network Emulator | Mininet              |
-| Virtual Switch   | Open vSwitch (OVS)   |
-| Monitoring       | Prometheus + Grafana |
-| Backend          | Django               |
-| Containerization | Docker               |
+Mengacu pada berbagai penelitian terkait:
 
----
+* Software-Defined Networking
+* Evaluasi performa controller SDN
+* Sistem monitoring berbasis web
 
-## ⚙️ Cara Kerja Sistem
-
-1. **Mininet** mensimulasikan topologi jaringan
-
-2. **OVS switch** terhubung ke **Ryu Controller**
-
-3. Ryu menginjeksi **flow rules & logika load balancing**
-
-4. Exporter mengumpulkan metrik dari:
-
-   * Data Plane (Mininet)
-   * Control Plane (Ryu)
-
-5. **Prometheus** menyimpan data time-series
-
-6. **Grafana** memvisualisasikan metrik
-
-7. Dashboard web mengintegrasikan semuanya dalam satu tampilan
-
----
-
-## 🔀 Logika Load Balancing
-
-### 🧠 Distribusi 70/30
-
-* 70% trafik → jalur utama
-* 30% trafik → jalur alternatif
-
-### ⚖️ Distribusi 50/50
-
-* Trafik dibagi rata ke dua jalur
-
-📌 Menggunakan **flow-based hashing**, bukan pembagian per paket
-👉 Artinya: distribusi akan terlihat akurat jika terdapat banyak flow/koneksi
-
----
-
-## 🧪 Pengujian
-
-### ✅ Uji Konektivitas
-
-```bash
-mininet> pingall
-```
-
-* Hasil yang diharapkan: `0% packet loss`
-
----
-
-### 📡 Uji Trafik (iperf)
-
-Digunakan untuk memvalidasi load balancing antara:
-
-* H1 ↔ H2 (70/30)
-* H3 ↔ H4 (50/50)
-
----
-
-## 📊 Dashboard Monitoring
-
-Dashboard menyediakan:
-
-* Grafik trafik secara real-time (throughput, latency)
-* Monitoring resource (CPU, memory)
-* Visualisasi topologi interaktif
-
-Seluruh data diambil dari Prometheus dan ditampilkan melalui Grafana.
-
----
-
-## 🚧 Pengembangan Selanjutnya
-
-* 🔄 Migrasi dari Mininet ke **Containernet**
-* 💻 Penambahan **web terminal (xterm.js)**
-* 🎯 Peningkatan akurasi load balancing (packet-level / P4)
-
----
-
-## 🤝 Kontributor
-
-* Reski Farras Adiefa
-* Raihan Adnan Khawarizmi
-* Sheren Aulia Azahra
-* Muhammad Yusuf Ridwan H
-* Raditya Vihandika Bari Jabran
-
----
-
-## 📌 Catatan
-
-Proyek ini dirancang sebagai **implementasi praktis SDN**, dengan fokus pada:
-
-* Observabilitas real-time
-* Traffic engineering
-* Manajemen jaringan yang scalable
-
-Bukan sekadar teori — sistem ini benar-benar berjalan. 💻⚡
-
----
-
-## ⭐ Kalau proyek ini membantu...
-
-Kasih star ⭐ ya — kecil buat kamu, berarti buat kami.
-
+Detail lengkap tersedia pada bagian Daftar Pustaka di dokumen penelitian.
