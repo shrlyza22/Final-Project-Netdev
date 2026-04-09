@@ -363,9 +363,6 @@ socket.onmessage = function(event) {
             updateTopologyVisuals();
         }
         
-        // --- UPDATE REAL-TIME SUMMARY DISINI ---
-        updateSummary(newData.nodes);
-        
         if(incoming.data.groups) updateLBTable(incoming.data.groups);
     }
 };
@@ -383,29 +380,3 @@ function updateLBTable(groupsData) {
     tableBody.innerHTML = `<tr><td>Packet</td><td>${b0.packet_count}</td><td>${b1.packet_count}</td><td>${active.packet_count}</td></tr><tr><td>Byte</td><td>${(b0.byte_count/1e9).toFixed(2)} GB</td><td>${(b1.byte_count/1e9).toFixed(2)} GB</td><td>${(total/1e9).toFixed(2)} GB</td></tr><tr><td>%</td><td>${total>0?((b0.byte_count/total)*100).toFixed(2):0}%</td><td>${total>0?((b1.byte_count/total)*100).toFixed(2):0}%</td><td>100%</td></tr>`;
 }
 function changeActiveSwitch(swNum) { selectedSwitchId = swNum.toString(); document.querySelectorAll('.sw-btn').forEach(btn => btn.classList.remove('active')); document.getElementById(`btn-s${swNum}`).classList.add('active'); }
-function updateSummary(nodes) {
-    // 1. Hitung Switch yang UP
-    const activeSwitches = nodes.filter(n => n.type === 'switch' && n.status === 'UP').length;
-    
-    // 2. Hitung Host (Host yang ditarik formatRyuData otomatis hanya yang UP)
-    const activeHosts = nodes.filter(n => n.type === 'host').length;
-    
-    // 3. Update DOM HTML
-    const swElem = document.getElementById('total-switches');
-    const hostElem = document.getElementById('total-hosts');
-    const ctrlElem = document.getElementById('controller-status');
-
-    if (swElem) swElem.innerText = `${activeSwitches} Nodes`;
-    if (hostElem) hostElem.innerText = `${activeHosts} Nodes`;
-    
-    // 4. Update Status Controller (Jika ada switch UP, asumsikan controller active)
-    if (ctrlElem) {
-        if (activeSwitches > 0) {
-            ctrlElem.innerText = "1 Active";
-            ctrlElem.parentElement.classList.replace('text-danger', 'text-success');
-        } else {
-            ctrlElem.innerText = "0 Active";
-            ctrlElem.parentElement.classList.replace('text-success', 'text-danger');
-        }
-    }
-}
