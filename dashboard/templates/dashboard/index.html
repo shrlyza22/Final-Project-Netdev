@@ -7,130 +7,359 @@
     <title>Dashboard NetDev - Kelompok 1</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <script src="https://d3js.org/d3.v7.min.js"></script>
 
     <style>
-        :root { --primary: #2c3e50; --accent: #3498db; --bg: #f8f9fa; }
-        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); padding: 40px; color: #333; }
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+
+        :root { 
+            --primary: #0f172a; 
+            --accent: #3b82f6; 
+            --accent-gradient: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            --bg: #e2e8f0; 
+            --card-bg: #ffffff;
+            --text-main: #334155;
+            --success: #10b981;
+        }
+
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background: var(--bg); 
+            padding: 40px 15px; 
+            color: var(--text-main); 
+        }
         
-        .container { 
-            max-width: 1100px; margin: auto; background: white; padding: 40px; 
-            border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); 
+        .dashboard-wrapper { 
+            max-width: 1200px; 
+            margin: auto; 
         }
 
-        h1 { border-bottom: 2px solid #eee; padding-bottom: 10px; color: var(--primary); text-align: center; }
-        h2 { border-left: 5px solid var(--accent); padding-left: 15px; margin-top: 40px; color: var(--primary); }
-        h3 { color: var(--accent); }
+        /* --- Header --- */
+        .header-section {
+            text-align: center;
+            margin-bottom: 50px;
+        }
 
-        /* Topologi */
+        .logo-adaptive {
+            max-width: 180px;
+            max-height: 180px;
+            height: auto;
+            width: auto;
+            margin-bottom: 10px;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
+            object-fit: contain;
+        }
+
+        .header-section h1 { 
+            font-weight: 800;
+            font-size: 2.5rem;
+            color: var(--primary);
+            text-shadow: 2px 4px 8px rgba(0,0,0,0.1);
+            margin-bottom: 15px;
+        }
+
+        /* --- 3D Elevated Card Style --- */
+        .custom-card { 
+            background: var(--card-bg); 
+            padding: 30px; 
+            border-radius: 28px; 
+            box-shadow: 
+                0 20px 25px -5px rgba(0, 0, 0, 0.1), 
+                0 10px 10px -5px rgba(0, 0, 0, 0.04),
+                inset 0 -4px 0 rgba(0,0,0,0.05); 
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            margin-bottom: 45px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .custom-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 30px 40px -10px rgba(0, 0, 0, 0.15);
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--primary);
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* --- Inner Content Cards --- */
+        .inner-visual-card {
+            background: #ffffff;
+            border-radius: 20px;
+            padding: 10px;
+            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+            border: 1px solid #f1f5f9;
+        }
+
         #topo-container { 
-            width: 100%; height: 500px; border: 1px solid #ddd; border-radius: 8px; 
-            margin: 20px 0; background: #fff; position: relative; overflow: hidden; 
+            width: 100%; 
+            height: 550px; 
+            background: #fdfdfd;
+            background-image: radial-gradient(#cbd5e1 1.5px, transparent 1.5px);
+            background-size: 30px 30px;
+            border-radius: 18px; 
+            position: relative; 
+            overflow: hidden; 
         }
 
-        #error-overlay { 
-            display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
-            text-align: center; color: #e74c3c; background: rgba(255, 255, 255, 0.9); 
-            padding: 20px; border-radius: 8px; border: 1px solid #ffccd5; z-index: 10; 
+        /* --- ANIMASI ALIRAN LISTRIK (DITAMBAHKAN DARI CSS LAMA) --- */
+        @keyframes flowDash {
+            to {
+                stroke-dashoffset: -20;
+            }
         }
 
-        /* Switch Selector */
-        #switch-selector { display: flex; gap: 12px; margin: 20px 0; justify-content: center; }
+        .link-flow-active {
+            stroke-dasharray: 10, 5; /* Pola garis putus-putus */
+            animation: flowDash 1s linear infinite; /* Gerakan mengalir */
+        }
+
+        /* --- STYLING LABEL TEKS D3.JS BIAR JELAS (DITAMBAHKAN DARI CSS LAMA) --- */
+        #topo-svg text {
+            font-weight: 800;
+            font-size: 12px;
+            pointer-events: none;
+            paint-order: stroke;
+            stroke: #ffffff;
+            stroke-width: 3px;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        /* --- Switch Selector 3D Style --- */
+        #switch-selector { display: flex; gap: 12px; margin-bottom: 30px; }
+        
         .sw-btn { 
-            background: white; border: 1px solid #ddd; padding: 10px 20px; border-radius: 8px; 
-            cursor: pointer; font-weight: 600; transition: 0.2s; 
+            background: #f8fafc; 
+            border: 1px solid #e2e8f0; 
+            padding: 12px 24px; 
+            border-radius: 16px; 
+            cursor: pointer; 
+            font-weight: 800; 
+            color: #64748b;
+            box-shadow: 0 4px 0 #e2e8f0; 
+            transition: all 0.1s ease;
         }
-        .sw-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
 
-        /* Table */
-        .card { border: 1px solid #eee; border-radius: 8px; padding: 20px; background: #fff; }
-        table { width: 100%; border-collapse: collapse; }
-        #lb-table-body td { padding: 10px; border-bottom: 1px solid #eee; }
-        #lb-table-body tr:last-child { font-weight: bold; color: var(--accent); }
+        .sw-btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 #e2e8f0;
+        }
+        
+        .sw-btn.active { 
+            background: var(--accent-gradient); 
+            color: white; 
+            border-color: transparent; 
+            box-shadow: 0 4px 0 #1d4ed8;
+        }
 
-        /* Tabs */
-        .tab-navigation-wrapper { display: flex; justify-content: center; margin: 20px 0; }
-        .nav-pills .nav-link { color: #495057; border: 1px solid #dee2e6; margin: 0 5px; }
-        .tab-content { border-radius: 8px; border: 1px solid #dee2e6; background: #fff; }
+        .table-responsive { 
+            border-radius: 18px; 
+            background: #f8fafc;
+            padding: 10px;
+            border: 1px solid #e2e8f0;
+        }
+        .table { margin-bottom: 0; background: transparent; }
+        .table thead th { border: none; font-weight: 800; color: #94a3b8; }
+        .table tbody td { border-top: 1px solid #e2e8f0; padding: 20px; }
+        .table tbody td {
+            border-bottom: 1px solid #f1f5f9;
+            padding: 16px 20px;
+            vertical-align: middle;
+        }
+
+        .table thead th {
+            background-color: #f8fafc;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .nav-pills { 
+            background: #e2e8f0; 
+            padding: 8px; 
+            border-radius: 20px; 
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+        }
+        
+        .nav-pills .nav-link { 
+            border-radius: 14px; 
+            font-weight: 800;
+            padding: 12px 28px;
+        }
+
+        .nav-pills .nav-link.active { 
+            background: white; 
+            color: var(--accent); 
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+        }
+
+        .status-badge {
+            background: white;
+            padding: 8px 20px;
+            border-radius: 50px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            font-weight: 800;
+        }
+
+        .fw-800 { font-weight: 800; }
+        
+        .node-active {
+            animation: pulse-blue 2s infinite;
+        }
+
+        @keyframes pulse-blue {
+            0% { filter: drop-shadow(0 0 2px rgba(59, 130, 246, 0.7)); }
+            70% { filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0)); }
+            100% { filter: drop-shadow(0 0 2px rgba(59, 130, 246, 0.7)); }
+        }
     </style>
 </head>
 
 <body>
-<div class="container">
-    <h1>Final Project - Kelompok 1</h1>
-
-    <section>
-        <h2>Jaringan & Topologi</h2>
-        <p>Visualisasi <code>diamond_topo.py</code> di <strong>VM2</strong> dikontrol oleh <strong>Ryu Controller (VM1)</strong>.</p>
-        <div id="topo-container">
-            <div id="error-overlay">
-                <strong>❌ Gagal Menarik Data Ryu</strong><br>
-                <span id="error-text">Pastikan API Topology aktif.</span>
+<div class="dashboard-wrapper">
+    
+    <header class="header-section text-center">
+        <img src="https://github.com/adaptivenetlab/adaptivenetlab/raw/main/assets/jumbotron.gif" 
+             alt="Adaptive Logo" 
+             class="logo-adaptive">
+        
+        <h1>Project Load Balancing Kelompok 1</h1>
+        <div class="d-flex justify-content-center">
+            <div class="status-badge text-success">
+                <i class="fas fa-circle fa-xs me-2"></i> SDN System Online
             </div>
-            <svg id="topo-svg" width="100%" height="100%"></svg>
+        </div>
+    </header>
+
+    <section class="custom-card">
+        <div class="section-title">
+            <i class="fas fa-project-diagram"></i> Jaringan & Topologi
+        </div>
+        
+        <div class="row g-4">
+            <div class="col-lg-3">
+                <div class="d-flex flex-column gap-3">
+                    <div class="p-3 rounded-4 bg-light border-start border-4 border-primary shadow-sm">
+                        <div class="small text-muted fw-bold text-uppercase">Total Switches</div>
+                        <div class="h4 mb-0 fw-800" id="total-switches">0 Nodes</div>
+                    </div>
+                    
+                    <div class="p-3 rounded-4 bg-light border-start border-4 border-success shadow-sm">
+                        <div class="small text-muted fw-bold text-uppercase">Total Hosts</div>
+                        <div class="h4 mb-0 fw-800" id="total-hosts">0 Nodes</div>
+                    </div>
+
+                    <div class="p-3 rounded-4 bg-light border-start border-4 border-warning shadow-sm">
+                        <div class="small text-muted fw-bold text-uppercase">Controller</div>
+                        <div class="h4 mb-0 fw-800" id="controller-status">0 Active</div>
+                    </div>
+
+                    <div class="mt-2 p-3 rounded-4 bg-dark text-white shadow-lg">
+                        <div class="small opacity-75 fw-bold">Active Topology</div>
+                        <code class="text-info d-block mt-1">diamond_topo.py</code>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-9">
+                <div class="inner-visual-card position-relative">
+                    <div class="position-absolute top-0 end-0 m-3 p-2 bg-white rounded-3 shadow-sm border small z-1" style="opacity: 0.9;">
+                        <div class="d-flex align-items-center mb-1">
+                            <span class="badge bg-primary rounded-circle p-1 me-2" style="width:10px; height:10px;"> </span> Switch
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <span class="badge bg-success rounded-circle p-1 me-2" style="width:10px; height:10px;"> </span> Host
+                        </div>
+                    </div>
+
+                    <div id="topo-container">
+                        <div id="error-overlay" style="display:none;">
+                            <strong>❌ Gagal Menarik Data Ryu</strong><br>
+                            <span id="error-text" class="small">Pastikan API Topology aktif.</span>
+                        </div>
+                        <svg id="topo-svg" width="100%" height="100%"></svg>
+                    </div>
+                </div>
+            </div>
         </div>
     </section>
 
-    <hr>
-
-    <section class="card">
-        <h3>Statistik Load Balancer (Real-time)</h3>
+    <section class="custom-card">
+        <div class="section-title">
+            <i class="fas fa-balance-scale"></i> Statistik Load Balancer
+        </div>
+        
         <div id="switch-selector">
             {% for i in "1234" %}
                 <button onclick="changeActiveSwitch('{{ i }}')" 
                         class="sw-btn {% if i == '1' %}active{% endif %}" 
-                        id="btn-s{{ i }}">Switch {{ i }}</button>
+                        id="btn-s{{ i }}">
+                    Switch {{ i }}
+                </button>
             {% endfor %}
         </div>
 
-        <table class="table">
-            <thead>
-                <tr style="border-bottom: 2px solid #eee;">
-                    <th>Parameter</th>
-                    <th>Jalur Kiri (B0)</th>
-                    <th>Jalur Kanan (B1)</th>
-                    <th>Total</th>
-                </tr>
-            </thead>
-            <tbody id="lb-table-body">
-                <tr><td>Packet Count</td><td id="b0-packet">0</td><td id="b1-packet">0</td><td id="total-packet">0</td></tr>
-            </tbody>
-        </table>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Parameter</th>
+                        <th>Jalur Kiri (B0)</th>
+                        <th>Jalur Kanan (B1)</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody id="lb-table-body">
+                    <tr>
+                        <td class="fw-bold">Packet Count</td>
+                        <td id="b0-packet">0</td>
+                        <td id="b1-packet">0</td>
+                        <td id="total-packet" class=" fw-bold text-primary" style="font-size: 1.2rem;">0</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
     </section>
 
-    <hr>
+    <section class="custom-card">
+        <div class="section-title">
+            <i class="fas fa-chart-line"></i> Live Monitoring
+        </div>
 
-    <section class="monitoring-section">
-        <h2>Live Monitoring</h2>
-        <p>Data statistik trafik real-time dari <strong>Prometheus Exporter</strong>.</p>
-
-        <div class="tab-navigation-wrapper">
+        <div class="d-flex justify-content-center mb-4">
             <ul class="nav nav-pills" id="monitoringTab" role="tablist">
                 {% for panel in monitoring_panels %}
                 <li class="nav-item">
                     <button class="nav-link {% if forloop.first %}active{% endif %}" 
                             id="{{ panel.id }}-tab" data-bs-toggle="tab" 
-                            data-bs-target="#pane-{{ panel.id }}" type="button">{{ panel.label }}</button>
+                            data-bs-target="#pane-{{ panel.id }}" type="button">
+                        {{ panel.label }}
+                    </button>
                 </li>
                 {% endfor %}
             </ul>
         </div>
 
-        <div class="tab-content" id="mainMonitoringContent">
-            {% for panel in monitoring_panels %}
-            <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" id="pane-{{ panel.id }}" role="tabpanel">
-                <iframe src="{{ panel.url }}" width="100%" height="450" frameborder="0"></iframe>
+        <div class="inner-visual-card">
+            <div class="tab-content" id="mainMonitoringContent">
+                {% for panel in monitoring_panels %}
+                <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" id="pane-{{ panel.id }}" role="tabpanel">
+                    <iframe src="{{ panel.url }}" width="100%" height="520" frameborder="0" style="border-radius: 12px;"></iframe>
+                </div>
+                {% endfor %}
             </div>
-            {% endfor %}
         </div>
     </section>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="{% static 'js/topology.js' %}?v=4"></script>
-
 
 </body>
 </html>
