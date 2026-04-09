@@ -115,11 +115,11 @@ Dashboard menyediakan:
 * Visualisasi topologi jaringan
 * Monitoring performa:
 
-  * Throughput
-  * Latency
-  * CPU Usage
-  * Packet Loss
-  * Memory Usage
+  a. Throughput
+  b. Latency
+  c. CPU Usage
+  d. Packet Loss
+  e. Memory Usage
 * Kontrol jaringan secara real-time
 
 Hasil pengujian menunjukkan:
@@ -127,14 +127,6 @@ Hasil pengujian menunjukkan:
 * Konektivitas antar host berhasil (0% packet loss)
 * Load balancing berjalan sesuai probabilitas konfigurasi
 * Sistem monitoring mampu menampilkan data secara real-time 
-
----
-
-## Insight Teknis
-
-* Load balancing menggunakan pendekatan flow-based hashing
-* Distribusi trafik bersifat probabilistik
-* Performa optimal dicapai saat terdapat banyak flow aktif
 
 ---
 
