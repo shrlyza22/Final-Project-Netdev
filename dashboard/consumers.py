@@ -103,11 +103,30 @@ class TopologyConsumer(AsyncWebsocketConsumer):
             print(f"Mencoba SSH ke {VM2_IP}...")
             ssh.connect(hostname=VM2_IP, username=VM2_USER, timeout=5.0)
 
+            # if state == "down":
+            #     # Hapus sw dari controller
+            #     command = f"sudo ovs-vsctl del-controller {switch_id} && sudo ovs-ofctl -O OpenFlow13 del-flows {switch_id}"
+            # else:
+            #     command = f"CTRL=$(sudo ovs-vsctl show | grep -o 'tcp:[0-9\\.]*:[0-9]*' | head -n 1) && sudo ovs-vsctl set-controller {switch_id} $CTRL"
+
             if state == "down":
-                # Hapus sw dari controller
-                command = f"sudo ovs-vsctl del-controller {switch_id} && sudo ovs-ofctl -O OpenFlow13 del-flows {switch_id}"
+                # Jadikan switch zombie (hapus controller & flow) SEKALIGUS cabut kabelnya!
+                command = (
+                    f"sudo ovs-vsctl del-controller {switch_id} && "
+                    f"sudo ovs-ofctl -O OpenFlow13 del-flows {switch_id} && "
+                    f"sudo ip link set {switch_id}-eth1 down && "
+                    f"sudo ip link set {switch_id}-eth2 down && "
+                    f"sudo ip link set {switch_id}-eth3 down"
+                )
             else:
-                command = f"CTRL=$(sudo ovs-vsctl show | grep -o 'tcp:[0-9\\.]*:[0-9]*' | head -n 1) && sudo ovs-vsctl set-controller {switch_id} $CTRL"
+                # Kembalikan kesadaran switch (sambung ke controller) SEKALIGUS colok lagi kabelnya!
+                command = (
+                    f"CTRL=$(sudo ovs-vsctl show | grep -o 'tcp:[0-9\\.]*:[0-9]*' | head -n 1) && "
+                    f"sudo ovs-vsctl set-controller {switch_id} $CTRL && "
+                    f"sudo ip link set {switch_id}-eth1 up && "
+                    f"sudo ip link set {switch_id}-eth2 up && "
+                    f"sudo ip link set {switch_id}-eth3 up"
+                )
 
             # Eksekusi command di VM2
             stdin, stdout, stderr = ssh.exec_command(command)
